@@ -3,3 +3,4 @@
 *.egg-info
 build/
 notebooks/
+__pycache__/
