@@ -1,5 +1,5 @@
 exclude: "^docs/|/notebooks/"
-default_stages: [commit]
+default_stages: [pre-commit]
 fail_fast: true
 
 repos:
@@ -35,5 +35,12 @@ repos:
         args: ["--python-version=3.11"]
         exclude: |
           (?x)^(
-              |.*_pb2.py
+              |src/tfr_reader/example/example_pb2.py
+              |src/tfr_reader/experimental.py
           )$
+        additional_dependencies:
+          - polars
+          - types-protobuf
+          - types-tqdm
+          - gcsfs
+          - pytest

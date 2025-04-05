@@ -5,18 +5,22 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "tfr_reader"
 version = "0.1.0"
-description = "TF"
+description = "Tensorflow Record Reader with Random Access"
 
 authors = [
   {name = "Krzysztof Kolasinski"},
 ]
 
 classifiers = [
-
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
 ]
-license = {text = "TF"}
+license = {text = "MIT"}
 dependencies = [
-    "polars"
+    "polars~=1.26.0",
+    "protobuf",
+    "gcsfs~=2025.3.2",
+    "fsspec~=2025.3.2"
 ]
 
 [project.optional-dependencies]
@@ -87,11 +91,17 @@ ignore = [
     "D", # Missing docstring
     "ANN", # Annotations
     "EM101",
-    "TRY003", #  Avoid specifying long messages outside the exception class
+    "TRY003", # Avoid specifying long messages outside the exception class
     "T201", # `print` found
-    "EM102", #  Exception must not use an f-string literal
-    "PTH123", #  `open()` should be replaced by `Path.open()`
-    "COM812"
+    "EM102", # Exception must not use an f-string literal
+    "PTH123", # `open()` should be replaced by `Path.open()`
+    "COM812",
+    "FBT001", # Boolean-typed positional argument in function definition
+    "FBT002", # Boolean default positional argument in function definition
+    "PTH110", # `Path` object should be used instead of `str` for file paths
+    "PTH118", #  `os.path.join()` should be replaced by `Path` with `/` operator
+    "SIM115", #  Use a context manager for opening files
+    "ISC001"
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -102,19 +112,24 @@ ignore = [
 ]
 
 # Only allow autofix for these import-related and docstring rules
-fixable = ["F401", "F403", "I001", "D411", "D415", "D208", "D209"]
+fixable = ["F401", "F403", "I001", "D411", "D415", "D208", "D209", "RET504"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
 [tool.mypy]
-namespace_packages = true
-mypy_path = "src/tfr_reader"
-# to hide errors when we have multiple files with same name
-explicit_package_bases = true
-# to ignore type errors where we import third party module e.g. elasticsearch
-# error: Cannot find implementation or library stub for module named "elasticsearch" or "pytest"
-ignore_missing_imports = true
-check_untyped_defs = true
+show_column_numbers = true
+show_error_codes = true
 
+namespace_packages = false
+mypy_path = "src/"
+explicit_package_bases = false
+ignore_missing_imports = false
+check_untyped_defs = true
 strict = false
+# tells `mypy` not to process this module when it's imported
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "tfr_reader.cython.*,google.protobuf.*,gcsfs"
+ignore_missing_imports = true
