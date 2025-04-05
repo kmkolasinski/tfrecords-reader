@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=74.1", "Cython"]
+requires = ["setuptools>=74.1", "Cython", "setuptools-protobuf"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -16,6 +16,7 @@ classifiers = [
 ]
 license = {text = "TF"}
 dependencies = [
+    "polars"
 ]
 
 [project.optional-dependencies]
@@ -27,7 +28,7 @@ dev = [
     "pytest-sugar~=0.9",
     "pytest-watch~=4.2.0",
     "pytest-mock",
-    "ruff"  # linting
+    "ruff",  # linting
 ]
 
 [tool.setuptools]
@@ -35,7 +36,7 @@ packages = ["tfr_reader"]
 package-dir = {"" = "src"}
 
 ext-modules = [
-  {name = "tfr_reader.cython.index", sources = ["src/tfr_reader/cython/index.pyx"]},
+  {name = "tfr_reader.cython.indexer", sources = ["src/tfr_reader/cython/indexer.pyx"]},
 ]
 
 
@@ -79,16 +80,25 @@ line-ending = "auto"
 # omitting any stylistic rules that overlap with the use of a formatter, like ruff format or Black.
 # For more details see https://docs.astral.sh/ruff/rules/
 [tool.ruff.lint]
-exclude = ["*.ipynb"]
+exclude = ["*.ipynb", "experimental.py", "*_pb2.py"]
 select = ["ALL"]
 
 ignore = [
-
+    "D", # Missing docstring
+    "ANN", # Annotations
+    "EM101",
+    "TRY003", #  Avoid specifying long messages outside the exception class
+    "T201", # `print` found
+    "EM102", #  Exception must not use an f-string literal
+    "PTH123", #  `open()` should be replaced by `Path.open()`
+    "COM812"
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"*/tests/*" = [
-
+"tests/*" = [
+    "S101", # Use of `assert` detected
+    "D", # Missing docstring
+    "ANN", # Annotations
 ]
 
 # Only allow autofix for these import-related and docstring rules
@@ -98,8 +108,8 @@ fixable = ["F401", "F403", "I001", "D411", "D415", "D208", "D209"]
 convention = "google"
 
 [tool.mypy]
-namespace_packages = false
-mypy_path = "tfr_reader"
+namespace_packages = true
+mypy_path = "src/tfr_reader"
 # to hide errors when we have multiple files with same name
 explicit_package_bases = true
 # to ignore type errors where we import third party module e.g. elasticsearch
@@ -108,10 +118,3 @@ ignore_missing_imports = true
 check_untyped_defs = true
 
 strict = false
-# see https://docs.pydantic.dev/latest/integrations/mypy/#configuring-the-plugin
-plugins = "pydantic.mypy"
-
-[tool.pydantic-mypy]
-init_forbid_extra = true
-init_typed = true
-warn_required_dynamic_aliases = true

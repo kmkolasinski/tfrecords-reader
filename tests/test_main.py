@@ -1,6 +1,5 @@
-from simple_app.main import main
+import tfr_reader as tfr
 
 
-def test__main__check_output():
-    """Test the main function."""
-    assert main() == "Hello, this is the empty service."
+def test__dummy():
+    assert tfr.TFRecordDatasetReader

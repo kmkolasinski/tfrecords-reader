@@ -33,3 +33,7 @@ repos:
     hooks:
       - id: mypy
         args: ["--python-version=3.11"]
+        exclude: |
+          (?x)^(
+              |.*_pb2.py
+          )$

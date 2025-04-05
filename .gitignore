@@ -1,6 +1,9 @@
 .idea/
 *.c
 *.egg-info
+*.so
 build/
 notebooks/
 __pycache__/
+*.egg
+dist/
