@@ -144,9 +144,11 @@ class TFRecordDatasetReader:
     def query(self, sql_query: str) -> pl.DataFrame:
         return self.ctx.execute(sql_query)
 
-    def load_records(self, selection: pl.DataFrame) -> list[example.Feature]:
+    def load_records(
+        self, selection: pl.DataFrame, max_workers: int | None = None
+    ) -> list[example.Feature]:
         index_cols = ["tfrecord_filename", "tfrecord_start", "tfrecord_end"]
-        selection = selection[index_cols].sort(by=index_cols[:2])
+        selection = selection[index_cols]
         pbar = {
             "total": selection.height,
             "desc": "Loading records ...",
@@ -166,7 +168,7 @@ class TFRecordDatasetReader:
             with TFRecordFileReader(row["filepath"]) as reader:
                 return reader.get_example(row["start"], row["end"])
 
-        with futures.ThreadPoolExecutor() as pool:
+        with futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
             return list(tqdm(pool.map(get_single, example_items), **pbar))
 
 

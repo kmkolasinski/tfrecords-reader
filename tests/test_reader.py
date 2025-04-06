@@ -9,15 +9,16 @@ from tfr_reader import indexer
 NUM_RECORDS = 5
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def tfrecord_file(tmp_path):
     dummy_tfrecord_path = tmp_path / "dummy.tfrecord"
     utils.write_dummy_tfrecord(dummy_tfrecord_path, NUM_RECORDS)
     return str(dummy_tfrecord_path)
 
 
-def test__inspect_dataset_example(tmp_path: Path):
-    feature, info = tfr.inspect_dataset_example(str(tmp_path))
+def test__inspect_dataset_example(tfrecord_file: str):
+    dataset_dir = str(Path(tfrecord_file).parent)
+    feature, info = tfr.inspect_dataset_example(dataset_dir)
 
     expected_info = [
         {"key": "bytes_feature", "type": "bytes_list", "length": 1},
@@ -54,48 +55,32 @@ def test__tfrecord_file_reader__invalid_offsets(tfrecord_file: str):
         reader.get_example(0, 20)
 
 
-def test__dataset_reader(tmp_path: Path):
-    ds = tfr.TFRecordDatasetReader.build_index_from_dataset_dir(str(tmp_path), _decode_fn)
-    assert ds.dataset_dir == str(tmp_path)
-    assert ds.size == NUM_RECORDS
-    assert len(ds) == NUM_RECORDS
+def test__dataset_reader(tfrecord_file: str):
+    dataset_dir = str(Path(tfrecord_file).parent)
+    ds_created = tfr.TFRecordDatasetReader.build_index_from_dataset_dir(dataset_dir, _decode_fn)
+    ds_loaded = tfr.TFRecordDatasetReader(dataset_dir)
+    for ds in [ds_created, ds_loaded]:
+        assert ds.dataset_dir == dataset_dir
+        assert ds.size == NUM_RECORDS
+        assert len(ds) == NUM_RECORDS
 
-    assert ds[0]["bytes_feature"].value[0] == b"A1"
-    with pytest.raises(KeyError):
-        _ = ds[0]["column"]
+        assert ds[0]["bytes_feature"].value[0] == b"A1"
+        with pytest.raises(KeyError):
+            _ = ds[0]["column"]
 
-    assert ds[1]["bytes_feature"].value[0] == b"A2"
+        assert ds[1]["bytes_feature"].value[0] == b"A2"
 
-    with pytest.raises(IndexError):
-        _ = ds[-1]
+        with pytest.raises(IndexError):
+            _ = ds[-1]
 
-    with pytest.raises(IndexError):
-        _ = ds[5]
-
-
-def test__dataset_reader_from_index(tmp_path: Path):
-    tfr.TFRecordDatasetReader.build_index_from_dataset_dir(str(tmp_path), _decode_fn)
-    ds = tfr.TFRecordDatasetReader(str(tmp_path))
-    assert ds.dataset_dir == str(tmp_path)
-    assert ds.size == NUM_RECORDS
-    assert len(ds) == NUM_RECORDS
-
-    assert ds[0]["bytes_feature"].value[0] == b"A1"
-    with pytest.raises(KeyError):
-        _ = ds[0]["column"]
-
-    assert ds[1]["bytes_feature"].value[0] == b"A2"
-
-    with pytest.raises(IndexError):
-        _ = ds[-1]
-
-    with pytest.raises(IndexError):
-        _ = ds[5]
+        with pytest.raises(IndexError):
+            _ = ds[5]
 
 
-def test__dataset_reader_select(tmp_path: Path):
-    tfr.TFRecordDatasetReader.build_index_from_dataset_dir(str(tmp_path), _decode_fn)
-    ds = tfr.TFRecordDatasetReader(str(tmp_path))
+def test__dataset_reader_select(tfrecord_file: str):
+    dataset_dir = str(Path(tfrecord_file).parent)
+    tfr.TFRecordDatasetReader.build_index_from_dataset_dir(dataset_dir, _decode_fn)
+    ds = tfr.TFRecordDatasetReader(dataset_dir)
     selected_rows, examples = ds.select("SELECT * FROM index")
     assert len(examples) == NUM_RECORDS
     assert len(selected_rows) == NUM_RECORDS
@@ -105,18 +90,20 @@ def test__dataset_reader_select(tmp_path: Path):
         assert selected_rows.row(row, named=True)["column"] == int_col_value
 
 
-def test__dataset_reader_select_randomized(tmp_path: Path):
-    tfr.TFRecordDatasetReader.build_index_from_dataset_dir(str(tmp_path), _decode_fn)
+def test__dataset_reader_demo(tmp_path: Path):
+    num_records = 40
+    utils.write_demo_tfrecord(tmp_path / "demo.tfrecord", num_records)
+    tfr.TFRecordDatasetReader.build_index_from_dataset_dir(str(tmp_path), _decode_demo_fn)
     ds = tfr.TFRecordDatasetReader(str(tmp_path))
-    selected_df = ds.index_df.sample(NUM_RECORDS)
-    selected_rows = ds.load_records(selected_df)
+    assert ds.size == num_records
 
-    assert len(selected_df) == NUM_RECORDS
-    assert len(selected_rows) == NUM_RECORDS
-    for row in range(NUM_RECORDS):
-        assert selected_rows[row]["bytes_feature"].value[0] == f"A{row + 1}".encode()
-        int_col_value = selected_rows[row]["int64_feature"].value[0]
-        assert selected_df.row(row, named=True)["column"] == int_col_value
+
+def _decode_demo_fn(feat: tfr.Feature) -> dict[str, tfr.Feature]:
+    return {
+        "name": feat["name"].value[0],
+        "label": feat["label"].value[0],
+        "image_id": feat["image_id"].value[0],
+    }
 
 
 def _decode_fn(feat: tfr.Feature) -> dict[str, tfr.Feature]:

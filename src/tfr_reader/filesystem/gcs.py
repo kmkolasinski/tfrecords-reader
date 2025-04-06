@@ -14,6 +14,7 @@ from tfr_reader.filesystem import base
 CACHE_DIR = "/tmp/tfr-reader-cache"  # noqa: S108
 CACHE = diskcache.Cache(CACHE_DIR)
 LOGGER = logging.Logger(__name__)
+warnings.filterwarnings("ignore", category=UserWarning, module="google")
 
 
 def hash_path(path: str) -> str:
@@ -97,5 +98,5 @@ class _StorageClient:
             with cls._lock:
                 if cls._storage is None:
                     cls._storage = _Client()
-                    warnings.filterwarnings("ignore", category=UserWarning, module="google")
+
         return cls._storage
