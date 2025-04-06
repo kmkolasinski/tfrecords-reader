@@ -17,22 +17,23 @@ classifiers = [
 ]
 license = {text = "MIT"}
 dependencies = [
-    "polars~=1.26.0",
+    "polars~=1.26",
     "protobuf",
-    "gcsfs~=2025.3.2",
-    "fsspec~=2025.3.2"
+    "gcsfs~=2025.3",
+    "fsspec~=2025.3",
+    "diskcache~=5.6"
 ]
 
 [project.optional-dependencies]
 dev = [
     "coverage",  # testing
-    "mypy",  # linting
+    "mypy",  # static type checking
+    "ruff",  # linting
     "pytest~=7.2",
     "pytest-cov~=4.0",
     "pytest-sugar~=0.9",
     "pytest-watch~=4.2.0",
     "pytest-mock",
-    "ruff",  # linting
 ]
 
 
@@ -106,7 +107,8 @@ ignore = [
     "PTH110", # `Path` object should be used instead of `str` for file paths
     "PTH118", #  `os.path.join()` should be replaced by `Path` with `/` operator
     "SIM115", #  Use a context manager for opening files
-    "ISC001"
+    "ISC001",
+    "G004" #  Logging statement uses f-string
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -114,6 +116,7 @@ ignore = [
     "S101", # Use of `assert` detected
     "D", # Missing docstring
     "ANN", # Annotations
+    "SLF001", # Private member accessed
 ]
 
 # Only allow autofix for these import-related and docstring rules
@@ -136,5 +139,5 @@ strict = false
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = "tfr_reader.cython.*,google.protobuf.*,gcsfs"
+module = "tfr_reader.cython,google.protobuf,google.cloud,gcsfs,diskcache"
 ignore_missing_imports = true

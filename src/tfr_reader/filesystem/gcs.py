@@ -1,7 +1,24 @@
+import hashlib
+import warnings
+from threading import Lock
+
+import diskcache
 import gcsfs
 from gcsfs import core
+from google.cloud import storage
+from requests.adapters import HTTPAdapter
 
+from tfr_reader import logging
 from tfr_reader.filesystem import base
+
+CACHE_DIR = "/tmp/tfr-reader-cache"  # noqa: S108
+CACHE = diskcache.Cache(CACHE_DIR)
+LOGGER = logging.Logger(__name__)
+
+
+def hash_path(path: str) -> str:
+    """Generate a hash for the given path."""
+    return hashlib.sha224(path.encode()).hexdigest()
 
 
 class GCSFile(base.BaseFile):
@@ -18,25 +35,21 @@ class GCSFile(base.BaseFile):
 
     def read(self, size: int = -1) -> bytes:
         """Read data from the file."""
+        if size == -1 and hash_path(self.path) in CACHE:
+            LOGGER.info("Loaded from cache %s", self.path)
+            return CACHE[hash_path(self.path)]
         if self.file is None:
             raise ValueError("File is not open!")
-        print(f"Reading {size} bytes from {self.path}")
-        return self.file.read(size)
+        data = self.file.read(size)
+        if size == -1:
+            CACHE[hash_path(self.path)] = data
+        return data
 
     def get_bytes(self, start: int, end: int) -> bytes:
         """Read data from the file between start and end offsets."""
-        if self.file is None:
-            raise ValueError("File is not open!")
-        print(f"Getting bytes from {start} to {end} in {self.path}")
-        self.file.seek(start)
-        return self.file.read(end - start)
-
-    def seek(self, offset: int):
-        """Move the file pointer to a new location."""
-        if self.file is None:
-            raise ValueError("File is not open!")
-        print(f"Seeking to {offset} in {self.path}")
-        self.file.seek(offset)
+        # this way is faster
+        blob = storage.Blob.from_uri(self.path, client=_StorageClient.get())
+        return blob.download_as_bytes(start=start, end=end - 1, checksum=None)
 
     def close(self):
         """Close the file."""
@@ -53,9 +66,7 @@ class GCSFileSystem(base.BaseFileSystem[GCSFile]):
 
     def open(self, path: str, mode: str = "rb") -> GCSFile:
         """Open a file in the specified mode."""
-        gcs_file = GCSFile(path, mode)
-        gcs_file.open()
-        return gcs_file
+        return GCSFile(path, mode)
 
     def listdir(self, path: str) -> list[str]:
         """List files and directories in the specified path."""
@@ -65,3 +76,26 @@ class GCSFileSystem(base.BaseFileSystem[GCSFile]):
 
     def exists(self, path: str) -> bool:
         return self.fs.exists(path)
+
+
+class _Client(storage.Client):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        adapter = HTTPAdapter(pool_connections=64, pool_maxsize=64)
+        # to hide: WARNING Connection pool is full, discarding connection
+        self._http.mount("https://", adapter)
+        self._http._auth_request.session.mount("https://", adapter)  # noqa: SLF001
+
+
+class _StorageClient:
+    _storage: _Client | None = None
+    _lock = Lock()
+
+    @classmethod
+    def get(cls) -> _Client:
+        if cls._storage is None:
+            with cls._lock:
+                if cls._storage is None:
+                    cls._storage = _Client()
+                    warnings.filterwarnings("ignore", category=UserWarning, module="google")
+        return cls._storage

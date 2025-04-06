@@ -8,23 +8,23 @@ from tqdm import tqdm
 from tfr_reader import example, indexer, logging
 from tfr_reader import filesystem as fs
 
-LOGGER = logging.get_logger(__name__)
+LOGGER = logging.Logger(__name__)
 INDEX_FILENAME = "tfrds-reader-index.parquet"
 
 
 class TFRecordFileReader:
     def __init__(self, filepath: str):
-        """Initializes the dataset with the TFRecord file and its index.
+        """Initializes the dataset with the TFRecord file reader.
 
         Args:
             filepath: Path to the TFRecord file.
         """
         self.tfrecord_filepath = filepath
         self.storage = fs.get_file_system(filepath)
-        self.file: fs.BaseFile | None = None
+        self._file: fs.BaseFile | None = None
 
     def get_example(self, start: int, end: int) -> example.Feature:
-        """Retrieves the raw TFRecord at the specified index.
+        """Retrieves the raw TFRecord data at the specified byte offsets.
 
         Args:
             start: The start byte index of the record to retrieve.
@@ -33,10 +33,10 @@ class TFRecordFileReader:
         Returns:
             feature: The raw serialized record data as a Feature object.
         """
-        if self.file is None:
+        if self._file is None:
             raise OSError("File is not open. Use context manager!")
 
-        example_data = self.file.get_bytes(start, end)
+        example_data = self._file.get_bytes(start, end)
         length = start - end
         if not example_data or len(example_data) < length:
             raise OSError(f"Failed to read data from {(start, end)}!")
@@ -45,25 +45,24 @@ class TFRecordFileReader:
         data = example_data[8 + 4 : -4 :]
         return indexer.decode(data)
 
-    def open(self):
+    def _open(self):
         """Opens the TFRecord file for reading."""
-        if self.file is None:
-            self.file = self.storage.open(self.tfrecord_filepath, "rb")
+        if self._file is None:
+            self._file = self.storage.open(self.tfrecord_filepath, "rb")
+            self._file.open()
 
-    def close(self):
+    def _close(self):
         """Closes the TFRecord file."""
-        if self.file is not None:
-            self.file.close()
-            self.file = None
+        if self._file is not None:
+            self._file.close()
+            self._file = None
 
     def __enter__(self):
-        """Context manager entry method."""
-        self.open()
+        self._open()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit method."""
-        self.close()
+        self._close()
         return False
 
 
@@ -79,6 +78,7 @@ class TFRecordDatasetReader:
         self.storage = fs.get_file_system(dataset_dir)
         self.dataset_dir = dataset_dir
         self.verbose = verbose
+        self.logger = logging.Logger(self.__class__.__name__, verbose)
 
         if index_df is None:
             index_path = join_path(dataset_dir, INDEX_FILENAME)
@@ -86,15 +86,12 @@ class TFRecordDatasetReader:
                 raise FileNotFoundError(
                     f"Index file {index_path} does not exist. Please create the index first.",
                 )
-            if self.verbose:
-                print(f"Loading dataset index from {index_path} ...")
-            file = self.storage.open(index_path, "rb")
-            index_df = pl.read_parquet(file)
+            self.logger.info("Loading dataset index from %s ...", index_path)
+            with self.storage.open(index_path, "rb") as file:
+                index_df = pl.read_parquet(file.read())
         self.index_df = index_df
         self.ctx = pl.SQLContext(index=self.index_df, eager=True)
-
-        if self.verbose:
-            print(f"Loaded dataset index with N={self.index_df.height} records ...")
+        self.logger.info(f"Loaded dataset index with N={self.index_df.height} records ...")
 
     def __len__(self) -> int:
         """Returns the number of records in the dataset."""
@@ -141,8 +138,7 @@ class TFRecordDatasetReader:
 
     def select(self, sql_query: str) -> tuple[pl.DataFrame, list[example.Feature]]:
         selection = self.ctx.execute(sql_query)
-        if self.verbose:
-            print(f"Selected N={selection.height} records ...")
+        self.logger.info(f"Selected N={selection.height} records ...")
         return selection, self.load_records(selection)
 
     def query(self, sql_query: str) -> pl.DataFrame:
@@ -153,7 +149,7 @@ class TFRecordDatasetReader:
         selection = selection[index_cols].sort(by=index_cols[:2])
         pbar = {
             "total": selection.height,
-            "desc": "Loading ...",
+            "desc": "Loading records ...",
             "disable": not self.verbose,
         }
 

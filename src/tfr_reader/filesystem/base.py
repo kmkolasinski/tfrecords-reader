@@ -16,8 +16,8 @@ class BaseFile(abc.ABC):
         """Read data from the file between start and end offsets."""
 
     @abc.abstractmethod
-    def seek(self, offset: int):
-        """Move the file pointer to a new location."""
+    def open(self):
+        """Open the file."""
 
     @abc.abstractmethod
     def close(self):
@@ -25,6 +25,7 @@ class BaseFile(abc.ABC):
 
     def __enter__(self):
         """Enter the runtime context related to this object."""
+        self.open()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

@@ -29,12 +29,6 @@ class LocalFile(base.BaseFile):
         self.file.seek(start)
         return self.file.read(end - start)
 
-    def seek(self, offset: int) -> None:
-        """Move the file pointer to a new location."""
-        if self.file is None:
-            raise ValueError("File is not open!")
-        self.file.seek(offset)
-
     def close(self) -> None:
         """Close the file."""
         if self.file:
@@ -47,9 +41,7 @@ class LocalFileSystem(base.BaseFileSystem[LocalFile]):
 
     def open(self, path: str, mode: str = "rb") -> LocalFile:
         """Open a file in the specified mode."""
-        local_file = LocalFile(path, mode)
-        local_file.open()
-        return local_file
+        return LocalFile(path, mode)
 
     def listdir(self, path: str) -> list[str]:
         """List files and directories in the specified path."""
