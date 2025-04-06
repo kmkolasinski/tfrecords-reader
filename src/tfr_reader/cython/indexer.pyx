@@ -1,15 +1,35 @@
+# cython: language_level=3
+# distutils: language=c++
+
+from libcpp.vector cimport vector
 from libc.stdio cimport FILE, fopen, fclose, fread, fseek, ftell, SEEK_CUR, SEEK_SET
 from libc.stdint cimport uint64_t
 from cpython.bytes cimport PyBytes_FromStringAndSize
 from libc.stdlib cimport malloc, free
 
 
-def create_tfrecord_offsets_index(str tfrecord_filename) -> list[int]:
+cdef uint64_t unpack_bytes(unsigned char[8] length_bytes):
+    """
+    Unpack length_bytes into uint64_t length (little-endian)
+    """
+    cdef uint64_t length = 0
+
+    length |= length_bytes[0]
+    length |= length_bytes[1] << 8
+    length |= length_bytes[2] << 16
+    length |= length_bytes[3] << 24
+    length |= length_bytes[4] << 32
+    length |= length_bytes[5] << 40
+    length |= length_bytes[6] << 48
+    length |= length_bytes[7] << 56
+    return length
+
+cdef vector[uint64_t] create_tfrecord_offsets_index(str tfrecord_filename):
     cdef:
-        list index = []
+        vector[uint64_t] index
         FILE *f
         uint64_t current_offset, length
-        cdef unsigned char length_bytes[8]
+        unsigned char length_bytes[8]
         size_t num_read
         int ret
 
@@ -28,15 +48,7 @@ def create_tfrecord_offsets_index(str tfrecord_filename) -> list[int]:
             break  # Reached EOF or error
 
         # Unpack length_bytes into uint64_t length (little-endian)
-        length = 0
-        length |= length_bytes[0]
-        length |= length_bytes[1] << 8
-        length |= length_bytes[2] << 16
-        length |= length_bytes[3] << 24
-        length |= length_bytes[4] << 32
-        length |= length_bytes[5] << 40
-        length |= length_bytes[6] << 48
-        length |= length_bytes[7] << 56
+        length = unpack_bytes(length_bytes)
 
         # Skip length CRC (4 bytes)
         ret = fseek(f, 4, SEEK_CUR)
@@ -44,10 +56,10 @@ def create_tfrecord_offsets_index(str tfrecord_filename) -> list[int]:
             break  # Error in seeking
 
         # Append the current offset to the index
-        index.append(int(current_offset))
+        index.push_back(int(current_offset))
 
         # Skip data and data CRC
-        ret = fseek(f, int(length) + 4, SEEK_CUR)
+        ret = fseek(f, length + 4, SEEK_CUR)
         if ret != 0:
             break  # Error in seeking
 
@@ -59,7 +71,7 @@ def create_tfrecord_offsets_index(str tfrecord_filename) -> list[int]:
 cdef class TFRecordFileReader:
 
     cdef str tfrecord_filepath
-    cdef list[int] offsets
+    cdef vector[uint64_t] offsets
     cdef FILE* file
 
     def __cinit__(self, str tfrecord_filepath):
@@ -86,9 +98,15 @@ cdef class TFRecordFileReader:
         """
         Returns the number of records in the dataset.
         """
-        return len(self.offsets)
+        return self.offsets.size()
 
-    def get_offset(self, int idx) -> int:
+    cdef size_t count(self):
+        """
+        Returns the number of records in the dataset.
+        """
+        return self.offsets.size()
+
+    cpdef uint64_t get_offset(self, uint64_t idx):
         """
         Retrieves the offset of the record at the specified index.
 
@@ -98,11 +116,11 @@ cdef class TFRecordFileReader:
         Returns:
             int: The offset of the record.
         """
-        if idx < 0 or idx >= len(self.offsets):
+        if idx < 0 or idx >= self.offsets.size():
             raise IndexError("Index out of bounds")
         return self.offsets[idx]
 
-    def __getitem__(self, int idx) -> bytes:
+    cdef bytes get_example(self, uint64_t idx):
         """
         Retrieves the raw TFRecord at the specified index.
 
@@ -112,15 +130,16 @@ cdef class TFRecordFileReader:
         Returns:
             bytes: The raw serialized record data.
         """
-        if idx < 0 or idx >= len(self.offsets):
-            raise IndexError("Index out of bounds")
-
-        cdef uint64_t offset = self.offsets[idx]
+        cdef uint64_t offset
         cdef uint64_t initial_position
         cdef unsigned char length_bytes[8]
         cdef uint64_t length
-        cdef unsigned char* data
+        cdef unsigned char * data
         cdef int ret
+
+        if idx < 0 or idx >= self.offsets.size():
+            raise IndexError("Index out of bounds")
+        offset = self.offsets[idx]
 
         initial_position = ftell(self.file)
 
@@ -133,15 +152,7 @@ cdef class TFRecordFileReader:
         if fread(length_bytes, 1, 8, self.file) != 8:
             raise IOError("Failed to read length bytes")
 
-        length = 0
-        length |= length_bytes[0]
-        length |= length_bytes[1] << 8
-        length |= length_bytes[2] << 16
-        length |= length_bytes[3] << 24
-        length |= length_bytes[4] << 32
-        length |= length_bytes[5] << 40
-        length |= length_bytes[6] << 48
-        length |= length_bytes[7] << 56
+        length = unpack_bytes(length_bytes)
 
         # Skip length CRC (4 bytes)
         ret = fseek(self.file, 4, SEEK_CUR)
@@ -149,7 +160,7 @@ cdef class TFRecordFileReader:
             raise IOError("Failed to skip length CRC")
 
         # Read the record data
-        data = <unsigned char*>malloc(length)
+        data = <unsigned char *> malloc(length)
         if not data:
             raise MemoryError("Failed to allocate memory for record data")
         if fread(data, 1, length, self.file) != length:
@@ -163,7 +174,7 @@ cdef class TFRecordFileReader:
             raise IOError("Failed to skip data CRC")
 
         # Convert the data to a Python bytes object
-        py_data = PyBytes_FromStringAndSize(<char*>data, length)
+        py_data = PyBytes_FromStringAndSize(<char *> data, length)
         free(data)
 
         # Reset the file pointer to the initial position
@@ -171,6 +182,9 @@ cdef class TFRecordFileReader:
         if ret != 0:
             raise IOError("Failed to reset file pointer to the initial position")
         return py_data
+
+    def __getitem__(self, uint64_t idx) -> bytes:
+        return self.get_example(idx)
 
     def close(self):
         """

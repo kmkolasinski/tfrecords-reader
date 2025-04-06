@@ -4,9 +4,8 @@ from pathlib import Path
 import polars as pl
 from tqdm import tqdm
 
+from tfr_reader import example, indexer, logging
 from tfr_reader import filesystem as fs
-from tfr_reader import indexer, logging
-from tfr_reader.example import example_pb2
 
 LOGGER = logging.get_logger(__name__)
 INDEX_FILENAME = "tfrds-reader-index.parquet"
@@ -23,14 +22,14 @@ class TFRecordFileReader:
         self.storage = fs.get_file_system(filepath)
         self.file: fs.BaseFile | None = None
 
-    def __getitem__(self, offset: int) -> example_pb2.Example:
+    def __getitem__(self, offset: int) -> example.Feature:
         """Retrieves the raw TFRecord at the specified index.
 
         Args:
             offset (int): The byte offset of the record to retrieve.
 
         Returns:
-            bytes: The raw serialized record data.
+            feature: The raw serialized record data as a Feature object.
         """
         if self.file is None:
             raise ValueError("File is not open. Use context manager!")
@@ -116,7 +115,7 @@ class TFRecordDatasetReader:
         ds.write_parquet(Path(dataset_dir) / INDEX_FILENAME)
         return cls(dataset_dir, index_df=ds)
 
-    def select(self, sql_query: str) -> tuple[pl.DataFrame, list[example_pb2.Example]]:
+    def select(self, sql_query: str) -> tuple[pl.DataFrame, list[example.Feature]]:
         selection = self.ctx.execute(sql_query)
         if self.verbose:
             print(f"Selected N={selection.height} records ...")
@@ -125,7 +124,7 @@ class TFRecordDatasetReader:
     def query(self, sql_query: str) -> pl.DataFrame:
         return self.ctx.execute(sql_query)
 
-    def load_records(self, selection: pl.DataFrame) -> list[example_pb2.Example]:
+    def load_records(self, selection: pl.DataFrame) -> list[example.Feature]:
         examples = []
         index_cols = ["tfrecord_filename", "tfrecord_offset"]
         grouped = selection[index_cols].group_by("tfrecord_filename")
@@ -147,20 +146,19 @@ class TFRecordDatasetReader:
 
 def inspect_dataset_example(
     dataset_dir: str,
-) -> tuple[example_pb2.Example, list[dict[str, str]]]:
+) -> tuple[example.Feature, list[dict[str, str]]]:
     """Inspects the TFRecord dataset and returns an example and its feature types."""
     storage = fs.get_file_system(dataset_dir)
     paths = storage.listdir(dataset_dir)
     paths = sorted([path for path in paths if path.endswith(".tfrecord")])
     LOGGER.info("Found N=%s TFRecord files ...", len(paths))
     with TFRecordFileReader(paths[0]) as reader:
-        example = reader[0]
+        feature = reader[0]
 
-    feature = example.features.feature
-    keys = list(feature)
-    feature_types = [{"key": key, "type": feature[key].WhichOneof("kind")} for key in keys]
+    keys = list(feature.feature)
+    feature_types = [{"key": key, "type": feature.feature[key].WhichOneof("kind")} for key in keys]
 
-    return example, feature_types
+    return feature, feature_types
 
 
 def join_path(base_path: str, suffix: str) -> str:

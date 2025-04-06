@@ -35,20 +35,18 @@ dev = [
     "ruff",  # linting
 ]
 
-#[tool.setuptools]
-#packages = ["tfr_reader"]
-#package-dir = {"" = "src"}
 
 [tool.setuptools]
 
 ext-modules = [
-  {name = "tfr_reader.cython.indexer", sources = ["src/tfr_reader/cython/indexer.pyx"]},
+    { name = "tfr_reader.cython.indexer", sources = ["src/tfr_reader/cython/indexer.pyx"] }
 ]
-
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.cython]
+annotate = true
 
 
 [tool.pytest.ini_options]

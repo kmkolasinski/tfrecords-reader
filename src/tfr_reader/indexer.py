@@ -8,15 +8,15 @@ from typing import Any
 from tqdm import tqdm
 
 from tfr_reader.cython import indexer
-from tfr_reader.example import example_pb2
+from tfr_reader.example import example_pb2, feature
 
-FeatureParseFunc = Callable[[example_pb2.Feature], dict[str, Any]]
+FeatureParseFunc = Callable[[feature.Feature], dict[str, Any]]
 
 
-def decode(raw_record: bytes) -> example_pb2.Example:
+def decode(raw_record: bytes) -> feature.Feature:
     example = example_pb2.Example()
     example.ParseFromString(raw_record)
-    return example
+    return feature.Feature(example.features.feature)
 
 
 def create_index_for_tfrecord(
@@ -30,8 +30,8 @@ def create_index_for_tfrecord(
 
     for i in range(len(reader)):
         offset = reader.get_offset(i)
-        example = decode(reader[i])
-        example_data = feature_parse_fn(example.features.feature)
+        example_str = reader[i]
+        example_data = feature_parse_fn(decode(example_str))
 
         data["tfrecord_filename"].append(filename)
         data["tfrecord_offset"].append(offset)
