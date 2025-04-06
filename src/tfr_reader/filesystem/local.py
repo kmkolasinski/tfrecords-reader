@@ -22,6 +22,13 @@ class LocalFile(base.BaseFile):
             raise ValueError("File is not open!")
         return self.file.read(size)
 
+    def get_bytes(self, start: int, end: int) -> bytes:
+        """Read data from the file between start and end offsets."""
+        if self.file is None:
+            raise ValueError("File is not open!")
+        self.file.seek(start)
+        return self.file.read(end - start)
+
     def seek(self, offset: int) -> None:
         """Move the file pointer to a new location."""
         if self.file is None:

@@ -1,4 +1,5 @@
 import struct
+from concurrent import futures
 from pathlib import Path
 
 import polars as pl
@@ -22,28 +23,26 @@ class TFRecordFileReader:
         self.storage = fs.get_file_system(filepath)
         self.file: fs.BaseFile | None = None
 
-    def __getitem__(self, offset: int) -> example.Feature:
+    def get_example(self, start: int, end: int) -> example.Feature:
         """Retrieves the raw TFRecord at the specified index.
 
         Args:
-            offset (int): The byte offset of the record to retrieve.
+            start: The start byte index of the record to retrieve.
+            end: The end byte index of the record to retrieve.
 
         Returns:
             feature: The raw serialized record data as a Feature object.
         """
         if self.file is None:
-            raise ValueError("File is not open. Use context manager!")
+            raise OSError("File is not open. Use context manager!")
 
-        self.file.seek(offset)
-        length_bytes = self.file.read(8)
-        if not length_bytes:
-            raise IndexError("Failed to read length bytes")
-        length = struct.unpack("<Q", length_bytes)[0]
-        self.file.read(4)  # Skip length CRC
-        data = self.file.read(length)
-        if not data or len(data) < length:
-            raise OSError(f"Failed to read data at offset {offset}")
-        self.file.read(4)  # Skip data CRC
+        example_data = self.file.get_bytes(start, end)
+        length = start - end
+        if not example_data or len(example_data) < length:
+            raise OSError(f"Failed to read data from {(start, end)}!")
+
+        # dropping the length and length_crc bytes for simplicity
+        data = example_data[8 + 4 : -4 :]
         return indexer.decode(data)
 
     def open(self):
@@ -87,6 +86,8 @@ class TFRecordDatasetReader:
                 raise FileNotFoundError(
                     f"Index file {index_path} does not exist. Please create the index first.",
                 )
+            if self.verbose:
+                print(f"Loading dataset index from {index_path} ...")
             file = self.storage.open(index_path, "rb")
             index_df = pl.read_parquet(file)
         self.index_df = index_df
@@ -95,11 +96,20 @@ class TFRecordDatasetReader:
         if self.verbose:
             print(f"Loaded dataset index with N={self.index_df.height} records ...")
 
+    def __len__(self) -> int:
+        """Returns the number of records in the dataset."""
+        return self.size
+
+    @property
+    def size(self) -> int:
+        """Returns the size of the dataset."""
+        return self.index_df.height
+
     @classmethod
     def build_index_from_dataset_dir(
         cls,
         dataset_dir: str,
-        feature_parse_fn: indexer.FeatureParseFunc,
+        feature_decode_fn: example.FeatureDecodeFunc,
         processes: int = 1,
     ) -> "TFRecordDatasetReader":
         storage = fs.get_file_system(dataset_dir)
@@ -107,13 +117,27 @@ class TFRecordDatasetReader:
             raise TypeError("Only local file system is supported for now.")
 
         data = indexer.create_index_for_directory(
-            dataset_dir,
-            feature_parse_fn,
-            processes,
+            dataset_dir, feature_decode_fn, processes=processes
         )
-        ds = pl.DataFrame(data).sort(by=["tfrecord_filename", "tfrecord_offset"])
+        ds = pl.DataFrame(data).sort(by=["tfrecord_filename", "tfrecord_start"])
         ds.write_parquet(Path(dataset_dir) / INDEX_FILENAME)
-        return cls(dataset_dir, index_df=ds)
+        return cls(str(dataset_dir), index_df=ds)
+
+    def __getitem__(self, idx: int) -> example.Feature:
+        """Retrieves the TFRecord at the specified index.
+
+        Args:
+            idx (int): The index of the record to retrieve.
+
+        Returns:
+            feature: The raw serialized record data as a Feature object.
+        """
+        if idx < 0 or idx >= self.size:
+            raise IndexError(f"Index {idx=} out of bounds, dataset size={self.size}")
+        offsets = self.index_df.row(idx, named=True)
+        path = join_path(self.dataset_dir, offsets["tfrecord_filename"])
+        with TFRecordFileReader(path) as reader:
+            return reader.get_example(offsets["tfrecord_start"], offsets["tfrecord_end"])
 
     def select(self, sql_query: str) -> tuple[pl.DataFrame, list[example.Feature]]:
         selection = self.ctx.execute(sql_query)
@@ -125,23 +149,29 @@ class TFRecordDatasetReader:
         return self.ctx.execute(sql_query)
 
     def load_records(self, selection: pl.DataFrame) -> list[example.Feature]:
-        examples = []
-        index_cols = ["tfrecord_filename", "tfrecord_offset"]
-        grouped = selection[index_cols].group_by("tfrecord_filename")
-        num_groups = grouped.len().height
+        index_cols = ["tfrecord_filename", "tfrecord_start", "tfrecord_end"]
+        selection = selection[index_cols].sort(by=index_cols[:2])
+        pbar = {
+            "total": selection.height,
+            "desc": "Loading ...",
+            "disable": not self.verbose,
+        }
 
-        iterator = grouped
-        if self.verbose:
-            iterator = tqdm(grouped, total=num_groups, desc="Loading records ...")  # type: ignore  # noqa: PGH003
-            print(f"Getting examples from N={num_groups} TFRecord files ...")
+        example_items = [
+            {
+                "filepath": join_path(self.dataset_dir, row["tfrecord_filename"]),
+                "start": row["tfrecord_start"],
+                "end": row["tfrecord_end"],
+            }
+            for row in selection.iter_rows(named=True)
+        ]
 
-        for (filename,), group in iterator:
-            offsets = group["tfrecord_offset"].to_list()
-            path = join_path(self.dataset_dir, str(filename))
-            with TFRecordFileReader(path) as reader:
-                examples.extend([reader[offset] for offset in offsets])
+        def get_single(row: dict) -> example.Feature:
+            with TFRecordFileReader(row["filepath"]) as reader:
+                return reader.get_example(row["start"], row["end"])
 
-        return examples
+        with futures.ThreadPoolExecutor() as pool:
+            return list(tqdm(pool.map(get_single, example_items), **pbar))
 
 
 def inspect_dataset_example(
@@ -152,11 +182,27 @@ def inspect_dataset_example(
     paths = storage.listdir(dataset_dir)
     paths = sorted([path for path in paths if path.endswith(".tfrecord")])
     LOGGER.info("Found N=%s TFRecord files ...", len(paths))
-    with TFRecordFileReader(paths[0]) as reader:
-        feature = reader[0]
+
+    with storage.open(paths[0], "rb") as file:
+        length_bytes = file.read(8)
+        if not length_bytes:
+            raise IndexError("Failed to read length bytes")
+        length = struct.unpack("<Q", length_bytes)[0]
+        file.read(4)  # Skip length CRC
+        data = file.read(length)
+        if not data or len(data) < length:
+            raise OSError("Failed to read data!")
+        feature = indexer.decode(data)
 
     keys = list(feature.feature)
-    feature_types = [{"key": key, "type": feature.feature[key].WhichOneof("kind")} for key in keys]
+    feature_types = [
+        {
+            "key": key,
+            "type": feature.feature[key].WhichOneof("kind"),
+            "length": len(feature[key].value),
+        }
+        for key in keys
+    ]
 
     return feature, feature_types
 

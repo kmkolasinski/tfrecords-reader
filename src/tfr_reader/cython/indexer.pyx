@@ -7,6 +7,12 @@ from libc.stdint cimport uint64_t
 from cpython.bytes cimport PyBytes_FromStringAndSize
 from libc.stdlib cimport malloc, free
 
+cdef struct ExamplePointer:
+    # bytes offset contains the offset of the example in the TFRecord file
+    uint64_t start
+    uint64_t end
+    uint64_t example_size
+
 
 cdef uint64_t unpack_bytes(unsigned char[8] length_bytes):
     """
@@ -24,23 +30,22 @@ cdef uint64_t unpack_bytes(unsigned char[8] length_bytes):
     length |= length_bytes[7] << 56
     return length
 
-cdef vector[uint64_t] create_tfrecord_offsets_index(str tfrecord_filename):
+cdef vector[ExamplePointer] create_tfrecord_pointers_index(str tfrecord_filename):
     cdef:
-        vector[uint64_t] index
+        vector[ExamplePointer] pointers
         FILE *f
-        uint64_t current_offset, length
+        uint64_t start, end, length
         unsigned char length_bytes[8]
         size_t num_read
         int ret
 
-    # Open the file using C's fopen
     f = fopen(tfrecord_filename.encode('utf-8'), b'rb')
     if not f:
         raise IOError("Cannot open file: {}".format(tfrecord_filename))
 
     while True:
         # Get the current offset
-        current_offset = ftell(f)
+        start = ftell(f)
 
         # Read 8 bytes for the length
         num_read = fread(length_bytes, 1, 8, f)
@@ -55,23 +60,23 @@ cdef vector[uint64_t] create_tfrecord_offsets_index(str tfrecord_filename):
         if ret != 0:
             break  # Error in seeking
 
-        # Append the current offset to the index
-        index.push_back(int(current_offset))
+        # end is 4 + 4 + 8 + length
+        end = start + 4 + 4 + 8 + length
+        pointers.push_back(ExamplePointer(start, end, length))
 
         # Skip data and data CRC
         ret = fseek(f, length + 4, SEEK_CUR)
         if ret != 0:
             break  # Error in seeking
 
-    # Close the file
     fclose(f)
-    return index
+    return pointers
 
 
 cdef class TFRecordFileReader:
 
     cdef str tfrecord_filepath
-    cdef vector[uint64_t] offsets
+    cdef vector[ExamplePointer] pointers
     cdef FILE* file
 
     def __cinit__(self, str tfrecord_filepath):
@@ -82,7 +87,7 @@ cdef class TFRecordFileReader:
             tfrecord_filepath: Path to the TFRecord file.
         """
         self.tfrecord_filepath = tfrecord_filepath
-        self.offsets = create_tfrecord_offsets_index(tfrecord_filepath)
+        self.pointers = create_tfrecord_pointers_index(tfrecord_filepath)
         self.file = fopen(tfrecord_filepath.encode('utf-8'), b'rb')
         if not self.file:
             raise IOError(f"Cannot open file: {tfrecord_filepath}")
@@ -98,15 +103,15 @@ cdef class TFRecordFileReader:
         """
         Returns the number of records in the dataset.
         """
-        return self.offsets.size()
+        return self.pointers.size()
 
-    cdef size_t count(self):
+    cdef size_t size(self):
         """
         Returns the number of records in the dataset.
         """
-        return self.offsets.size()
+        return self.pointers.size()
 
-    cpdef uint64_t get_offset(self, uint64_t idx):
+    cpdef ExamplePointer get_pointer(self, uint64_t idx):
         """
         Retrieves the offset of the record at the specified index.
 
@@ -116,11 +121,11 @@ cdef class TFRecordFileReader:
         Returns:
             int: The offset of the record.
         """
-        if idx < 0 or idx >= self.offsets.size():
+        if idx < 0 or idx >= self.size():
             raise IndexError("Index out of bounds")
-        return self.offsets[idx]
+        return self.pointers[idx]
 
-    cdef bytes get_example(self, uint64_t idx):
+    def get_example(self, uint64_t idx) -> bytes:
         """
         Retrieves the raw TFRecord at the specified index.
 
@@ -130,40 +135,29 @@ cdef class TFRecordFileReader:
         Returns:
             bytes: The raw serialized record data.
         """
-        cdef uint64_t offset
+        cdef ExamplePointer pointer
         cdef uint64_t initial_position
-        cdef unsigned char length_bytes[8]
-        cdef uint64_t length
+        cdef uint64_t offset
         cdef unsigned char * data
         cdef int ret
 
-        if idx < 0 or idx >= self.offsets.size():
+        if idx < 0 or idx >= self.size():
             raise IndexError("Index out of bounds")
-        offset = self.offsets[idx]
+        pointer = self.pointers[idx]
 
         initial_position = ftell(self.file)
 
         # Seek to the record's offset
+        offset = pointer.start + 8 + 4  # Skip length bytes and length CRC
         ret = fseek(self.file, offset, SEEK_CUR)
         if ret != 0:
             raise IOError("Failed to seek to the record offset")
 
-        # Read the length of the record
-        if fread(length_bytes, 1, 8, self.file) != 8:
-            raise IOError("Failed to read length bytes")
-
-        length = unpack_bytes(length_bytes)
-
-        # Skip length CRC (4 bytes)
-        ret = fseek(self.file, 4, SEEK_CUR)
-        if ret != 0:
-            raise IOError("Failed to skip length CRC")
-
         # Read the record data
-        data = <unsigned char *> malloc(length)
+        data = <unsigned char *> malloc(pointer.example_size)
         if not data:
             raise MemoryError("Failed to allocate memory for record data")
-        if fread(data, 1, length, self.file) != length:
+        if fread(data, 1, pointer.example_size, self.file) != pointer.example_size:
             free(data)
             raise IOError("Failed to read record data")
 
@@ -174,7 +168,7 @@ cdef class TFRecordFileReader:
             raise IOError("Failed to skip data CRC")
 
         # Convert the data to a Python bytes object
-        py_data = PyBytes_FromStringAndSize(<char *> data, length)
+        py_data = PyBytes_FromStringAndSize(<char *> data, pointer.example_size)
         free(data)
 
         # Reset the file pointer to the initial position
@@ -182,9 +176,6 @@ cdef class TFRecordFileReader:
         if ret != 0:
             raise IOError("Failed to reset file pointer to the initial position")
         return py_data
-
-    def __getitem__(self, uint64_t idx) -> bytes:
-        return self.get_example(idx)
 
     def close(self):
         """

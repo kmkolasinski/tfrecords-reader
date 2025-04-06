@@ -20,12 +20,22 @@ class GCSFile(base.BaseFile):
         """Read data from the file."""
         if self.file is None:
             raise ValueError("File is not open!")
+        print(f"Reading {size} bytes from {self.path}")
         return self.file.read(size)
+
+    def get_bytes(self, start: int, end: int) -> bytes:
+        """Read data from the file between start and end offsets."""
+        if self.file is None:
+            raise ValueError("File is not open!")
+        print(f"Getting bytes from {start} to {end} in {self.path}")
+        self.file.seek(start)
+        return self.file.read(end - start)
 
     def seek(self, offset: int):
         """Move the file pointer to a new location."""
         if self.file is None:
             raise ValueError("File is not open!")
+        print(f"Seeking to {offset} in {self.path}")
         self.file.seek(offset)
 
     def close(self):

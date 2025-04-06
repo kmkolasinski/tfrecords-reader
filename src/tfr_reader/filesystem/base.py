@@ -12,12 +12,25 @@ class BaseFile(abc.ABC):
         """Read data from the file."""
 
     @abc.abstractmethod
+    def get_bytes(self, start: int, end: int) -> bytes:
+        """Read data from the file between start and end offsets."""
+
+    @abc.abstractmethod
     def seek(self, offset: int):
         """Move the file pointer to a new location."""
 
     @abc.abstractmethod
     def close(self):
         """Close the file."""
+
+    def __enter__(self):
+        """Enter the runtime context related to this object."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Exit the runtime context related to this object."""
+        self.close()
+        return False
 
 
 class BaseFileSystem(Generic[GenericFile], abc.ABC):
