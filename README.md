@@ -43,7 +43,7 @@ dataset_dir = "/path/to/directory/with/tfrecords"
 def indexed_cols_fn(feature):
     return {
         "label": feature["label"].value[0],
-        "name": feature["label"].value[0].decode(),
+        "name": feature["name"].value[0].decode(),
         "image_id": feature["image/id"].value[0].decode(),
     }
 
@@ -52,17 +52,17 @@ tfrds = tfr.TFRecordDatasetReader.build_index_from_dataset_dir(dataset_dir, inde
 tfrds.index_df[:5]
 >> Out[2]:
 shape: (5, 6)
-┌───────────────────┬────────────────┬──────────────┬────────┬───────┬───────────────┐
-│ tfrecord_filename ┆ tfrecord_start ┆ tfrecord_end ┆ name   ┆ label ┆ image_id      │
-│ ---               ┆ ---            ┆ ---          ┆ ---    ┆ ---   ┆ ---           │
-│ str               ┆ i64            ┆ i64          ┆ binary ┆ i64   ┆ binary        │
-╞═══════════════════╪════════════════╪══════════════╪════════╪═══════╪═══════════════╡
-│ demo.tfrecord     ┆ 0              ┆ 79           ┆ b"cat" ┆ 1     ┆ b"image-id-0" │
-│ demo.tfrecord     ┆ 79             ┆ 158          ┆ b"dog" ┆ 0     ┆ b"image-id-1" │
-│ demo.tfrecord     ┆ 158            ┆ 237          ┆ b"cat" ┆ 1     ┆ b"image-id-2" │
-│ demo.tfrecord     ┆ 237            ┆ 316          ┆ b"dog" ┆ 0     ┆ b"image-id-3" │
-│ demo.tfrecord     ┆ 316            ┆ 395          ┆ b"cat" ┆ 1     ┆ b"image-id-4" │
-└───────────────────┴────────────────┴──────────────┴────────┴───────┴───────────────┘
+┌───────────────────┬────────────────┬──────────────┬──────┬───────┬────────────┐
+│ tfrecord_filename ┆ tfrecord_start ┆ tfrecord_end ┆ name ┆ label ┆ image_id   │
+│ ---               ┆ ---            ┆ ---          ┆ ---  ┆ ---   ┆ ---        │
+│ str               ┆ i64            ┆ i64          ┆ str  ┆ i64   ┆ str        │
+╞═══════════════════╪════════════════╪══════════════╪══════╪═══════╪════════════╡
+│ demo.tfrecord     ┆ 0              ┆ 79           ┆ cat  ┆ 1     ┆ image-id-0 │
+│ demo.tfrecord     ┆ 79             ┆ 158          ┆ dog  ┆ 0     ┆ image-id-1 │
+│ demo.tfrecord     ┆ 158            ┆ 237          ┆ cat  ┆ 1     ┆ image-id-2 │
+│ demo.tfrecord     ┆ 237            ┆ 316          ┆ dog  ┆ 0     ┆ image-id-3 │
+│ demo.tfrecord     ┆ 316            ┆ 395          ┆ cat  ┆ 1     ┆ image-id-4 │
+└───────────────────┴────────────────┴──────────────┴──────┴───────┴────────────┘
 ```
 Explanation about the index format:
 * **tfrecord_filename**: name of the tfrecord file

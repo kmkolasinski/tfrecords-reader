@@ -100,9 +100,9 @@ def test__dataset_reader_demo(tmp_path: Path):
 
 def _decode_demo_fn(feat: tfr.Feature) -> dict[str, tfr.Feature]:
     return {
-        "name": feat["name"].value[0],
+        "name": feat["name"].value[0].decode(),
         "label": feat["label"].value[0],
-        "image_id": feat["image_id"].value[0],
+        "image_id": feat["image_id"].value[0].decode(),
     }
 
 
