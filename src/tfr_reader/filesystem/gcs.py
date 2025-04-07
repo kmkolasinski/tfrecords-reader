@@ -49,7 +49,7 @@ class GCSFile(base.BaseFile):
     def get_bytes(self, start: int, end: int) -> bytes:
         """Read data from the file between start and end offsets."""
         # this way is faster
-        blob = storage.Blob.from_uri(self.path, client=_StorageClient.get())
+        blob = _blob_from_uri(self.path)
         return blob.download_as_bytes(start=start, end=end - 1, checksum=None)
 
     def close(self):
@@ -77,6 +77,13 @@ class GCSFileSystem(base.BaseFileSystem[GCSFile]):
 
     def exists(self, path: str) -> bool:
         return self.fs.exists(path)
+
+
+def _blob_from_uri(uri: str) -> storage.Blob:
+    if hasattr(storage.Blob, "from_uri"):
+        # https://github.com/googleapis/python-storage/blob/main/CHANGELOG.md#300-2025-01-28
+        return storage.Blob.from_uri(uri, client=_StorageClient.get())
+    return storage.Blob.from_string(uri, client=_StorageClient.get())
 
 
 class _Client(storage.Client):
