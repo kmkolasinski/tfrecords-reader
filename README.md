@@ -2,6 +2,12 @@
 
 Fast TensorFlow TFRecords reader for Python with Random access and Google Storage streaming support.
 
+```bash
+pip install "tfr-reader"
+# + Google Storage support
+pip install "tfr-reader[google]"
+```
+
 ## Features
 * No **TensorFlow** dependency - this library implement custom TFRecord Reader
 * Protobuf is not required, this library contains cython decoder for TFRecord files
