@@ -91,6 +91,9 @@ def test__dataset_reader_selecting_by_indices(tfrecord_file: str):
     assert reader[0]["int64_feature"].value == [10, 20, 30]
     assert reader[[]] == []
     assert reader[[0]] == [reader[0]]
+    assert reader[[2, 1]] == [reader[2], reader[1]]
+    indices = np.array([0, 1, 2, 3, 4])
+    assert reader[indices] == [reader[i] for i in indices]
 
 
 def test__dataset_reader_select(tfrecord_file: str):

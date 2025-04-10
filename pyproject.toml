@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tfr_reader"
-version = "0.2.3"
+version = "0.3.0"
 description = "Tensorflow Record Reader with Random Access"
 readme = "README.md"
 license = "MIT"

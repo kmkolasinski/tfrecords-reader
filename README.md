@@ -61,6 +61,7 @@ tfrds = tfr.load_from_directory(
 
 # example selection using polars SQL query API
 rows, examples = tfrds.select("select * from index where name ~ 'rose' limit 10")
+assert examples == tfrds[rows["_row_id"]]
 
 samples, names = [], []
 for k, example in enumerate(examples):

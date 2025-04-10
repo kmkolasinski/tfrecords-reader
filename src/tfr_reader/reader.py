@@ -1,5 +1,6 @@
 import fnmatch
 import struct
+from collections.abc import Iterable
 from concurrent import futures
 from pathlib import Path
 
@@ -90,7 +91,7 @@ class TFRecordDatasetReader:
             self.logger.info("Loading dataset index from %s ...", index_path)
             with self.storage.open(index_path, "rb") as file:
                 index_df = pl.read_parquet(file.read())
-        self.index_df = index_df
+        self.index_df = index_df.with_row_index("_row_id")
         self.ctx = pl.SQLContext(index=self.index_df, eager=True)
         self.logger.info(f"Loaded dataset index with N={self.index_df.height} records ...")
 
@@ -137,7 +138,7 @@ class TFRecordDatasetReader:
         ds.write_parquet(Path(dataset_dir) / INDEX_FILENAME)
         return cls(str(dataset_dir), index_df=ds)
 
-    def __getitem__(self, idx: int | list[int]) -> example.Feature | list[example.Feature]:
+    def __getitem__(self, idx: int | Iterable[int]) -> example.Feature | list[example.Feature]:
         """Retrieves the TFRecord at the specified index.
 
         Args:
@@ -146,7 +147,7 @@ class TFRecordDatasetReader:
         Returns:
             feature: The raw serialized record data as a Feature object.
         """
-        if isinstance(idx, list):
+        if isinstance(idx, Iterable):
             return [self[i] for i in idx]
         if idx < 0 or idx >= self.size:
             raise IndexError(f"Index {idx=} out of bounds, dataset size={self.size}")
