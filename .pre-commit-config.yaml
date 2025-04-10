@@ -11,11 +11,6 @@ repos:
       - id: check-yaml
       - id: check-merge-conflict
       - id: detect-private-key
-      - id: no-commit-to-branch
-        args:
-        - --branch=develop
-        - --branch=master
-        - --branch=fix
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.3
@@ -44,3 +39,4 @@ repos:
           - types-tqdm
           - gcsfs
           - pytest
+          - types-Pillow

@@ -1,9 +1,10 @@
 import abc
 import io
+import warnings
 from collections.abc import Callable
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 
-from tfr_reader.example import example_pb2
+from tfr_reader.cython import decoder
 
 T = TypeVar("T")
 
@@ -11,7 +12,7 @@ FeatureDecodeFunc = Callable[["Feature"], dict[str, Any]]
 
 
 class BaseFeature(Generic[T], abc.ABC):
-    def __init__(self, feature: example_pb2.Feature):
+    def __init__(self, feature):
         """Initialize the FloatList object with a protobuf FloatList."""
         self.feature = feature
 
@@ -42,7 +43,7 @@ class BytesList(BaseFeature[bytes]):
         return self.feature.bytes_list.value
 
     @property
-    def bytes(self) -> list[io.BytesIO]:
+    def bytes_io(self) -> list[io.BytesIO]:
         """Get the value of the bytes list as BytesIO objects."""
         return [io.BytesIO(b) for b in self.value]
 
@@ -50,9 +51,27 @@ class BytesList(BaseFeature[bytes]):
 class Feature:
     __slots__ = ("feature",)
 
-    def __init__(self, feature: example_pb2.Feature):
+    def __init__(self, feature):
         """Initialize the Feature object with a protobuf Feature."""
         self.feature = feature
+
+    def __len__(self) -> int:
+        """Get the number of features."""
+        return len(self.feature)
+
+    def __repr__(self):
+        """Get the string representation of the Feature object."""
+        return f"Feature({set(self.feature.keys())})"
+
+    @property
+    def fields_names(self) -> list[str]:
+        """Get the names of the fields in the feature."""
+        return list(self.feature.keys())
+
+    @property
+    def fields(self) -> list[tuple[str, str]]:
+        """Get the types of the fields in the feature."""
+        return [(key, self.feature[key].WhichOneof("kind")) for key in self.feature]
 
     def __getitem__(self, key: str) -> BaseFeature:
         """Get the feature by key."""
@@ -70,3 +89,47 @@ class Feature:
         if kind == "bytes_list":
             return BytesList(feature)
         raise ValueError(f"Unknown feature kind: '{kind}' for '{key}'!")
+
+
+def _cython_decode_fn(raw_record: bytes) -> Feature:
+    proto = decoder.example_from_bytes(raw_record)
+    return Feature(proto.features.feature)
+
+
+_google_decode_fn = None
+TFRECORD_READER_DECODER_IMP: Literal["protobuf", "cython"] = "cython"
+
+try:
+    # https://github.com/protocolbuffers/protobuf/blob/main/python/README.md
+    from google import protobuf
+    from google.protobuf.internal import api_implementation
+
+    from tfr_reader.example import example_pb2
+
+    def _google_decode_fn(raw_record: bytes) -> Feature:
+        proto = example_pb2.Example()
+        proto.ParseFromString(raw_record)
+        return Feature(proto.features.feature)
+
+    if api_implementation.Type() == "python":
+        warnings.warn(
+            f"Detected 'Python' protobuf API implementation type ({protobuf.__version__}). "
+            "Fallback to custom Cython decoder, maybe unsafe! To force official "
+            "Google decoder, you can set tfr.set_decoder_type('protobuf')"
+        )
+        TFRECORD_READER_DECODER_IMP = "cython"
+
+except ImportError:
+    warnings.warn(
+        "Google protobuf library not found. "
+        "Falling back to Cython decoder for TFRecord files, which may be unsafe. "
+    )
+    TFRECORD_READER_DECODER_IMP = "cython"
+
+
+def decode(raw_record: bytes) -> Feature:
+    if TFRECORD_READER_DECODER_IMP == "protobuf":
+        return _google_decode_fn(raw_record)
+    if TFRECORD_READER_DECODER_IMP == "cython":
+        return _cython_decode_fn(raw_record)
+    raise ValueError(f"Unknown decoder type: {TFRECORD_READER_DECODER_IMP}!")

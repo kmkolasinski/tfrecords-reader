@@ -8,13 +8,6 @@ from tqdm import tqdm
 
 from tfr_reader import example
 from tfr_reader.cython import indexer
-from tfr_reader.example import example_pb2
-
-
-def decode(raw_record: bytes) -> example.Feature:
-    proto = example_pb2.Example()
-    proto.ParseFromString(raw_record)
-    return example.Feature(proto.features.feature)
 
 
 def create_index_for_tfrecord(
@@ -35,7 +28,7 @@ def create_index_for_tfrecord(
 
         if feature_decode_fn is not None:
             example_str = reader.get_example(i)
-            example_data = feature_decode_fn(decode(example_str))
+            example_data = feature_decode_fn(example.decode(example_str))
             for key, vale in example_data.items():
                 data[key].append(vale)
 

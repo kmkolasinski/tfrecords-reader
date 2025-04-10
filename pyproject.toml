@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=74.1", "Cython", "setuptools-protobuf"]
+requires = ["setuptools>=74.1", "Cython>3", "setuptools-protobuf"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -18,13 +18,19 @@ classifiers = [
 license = {text = "MIT"}
 dependencies = [
     "polars~=1.26",
-    "protobuf",
-    "gcsfs~=2025.3",
-    "fsspec~=2025.3",
-    "diskcache~=5.6"
+    "tqdm",
 ]
 
 [project.optional-dependencies]
+
+# Google Storage features + protobuf decoder
+google = [
+    "gcsfs~=2025.3",
+    "fsspec~=2025.3",
+    "diskcache~=5.6",
+]
+
+# Dependencies for unit testing
 dev = [
     "coverage",  # testing
     "mypy",  # static type checking
@@ -34,13 +40,17 @@ dev = [
     "pytest-sugar~=0.9",
     "pytest-watch~=4.2.0",
     "pytest-mock",
+    "numpy",
+    "Pillow",
+    "protobuf", # Creating example protobufs
 ]
 
 
 [tool.setuptools]
 
 ext-modules = [
-    { name = "tfr_reader.cython.indexer", sources = ["src/tfr_reader/cython/indexer.pyx"] }
+    { name = "tfr_reader.cython.indexer", sources = ["src/tfr_reader/cython/indexer.pyx"], extra-compile-args=["-finline-functions", "-O3"] },
+    { name = "tfr_reader.cython.decoder", sources = ["src/tfr_reader/cython/decoder.pyx"], extra-compile-args=["-finline-functions", "-O3"] },
 ]
 
 [tool.setuptools.packages.find]
@@ -108,7 +118,8 @@ ignore = [
     "PTH118", #  `os.path.join()` should be replaced by `Path` with `/` operator
     "SIM115", #  Use a context manager for opening files
     "ISC001",
-    "G004" #  Logging statement uses f-string
+    "G004", #  Logging statement uses f-string
+    "B028", # Ignore missing stack explicit in warning.warn
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -139,5 +150,5 @@ strict = false
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = "tfr_reader.cython,google.protobuf,google.cloud,gcsfs,diskcache"
+module = "tfr_reader.cython,google.*,gcsfs,diskcache,numpy"
 ignore_missing_imports = true
