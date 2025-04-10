@@ -137,7 +137,7 @@ class TFRecordDatasetReader:
         ds.write_parquet(Path(dataset_dir) / INDEX_FILENAME)
         return cls(str(dataset_dir), index_df=ds)
 
-    def __getitem__(self, idx: int) -> example.Feature:
+    def __getitem__(self, idx: int | list[int]) -> example.Feature | list[example.Feature]:
         """Retrieves the TFRecord at the specified index.
 
         Args:
@@ -146,6 +146,8 @@ class TFRecordDatasetReader:
         Returns:
             feature: The raw serialized record data as a Feature object.
         """
+        if isinstance(idx, list):
+            return [self[i] for i in idx]
         if idx < 0 or idx >= self.size:
             raise IndexError(f"Index {idx=} out of bounds, dataset size={self.size}")
         offsets = self.index_df.row(idx, named=True)

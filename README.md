@@ -53,11 +53,13 @@ def index_fn(feature: tfr.Feature):
 
 tfrds = tfr.load_from_directory(
     dataset_info.data_dir,
+    # indexing options, not required if index is already created
     filepattern="*.tfrecord*",
     index_fn=index_fn,
     override=True, # override the index if it exists
 )
 
+# example selection using polars SQL query API
 rows, examples = tfrds.select("select * from index where name ~ 'rose' limit 10")
 
 samples, names = [], []

@@ -63,6 +63,16 @@ class Feature:
         """Get the string representation of the Feature object."""
         return f"Feature({set(self.feature.keys())})"
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Feature):
+            return False
+        return self.as_dict == other.as_dict
+
+    @property
+    def as_dict(self) -> dict[str, list[Any]]:
+        """Get the feature values as a dictionary."""
+        return {key: self[key].value for key in self.feature}
+
     @property
     def fields_names(self) -> list[str]:
         """Get the names of the fields in the feature."""

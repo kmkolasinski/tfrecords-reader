@@ -63,9 +63,7 @@ def test__tfrecord_file_reader__invalid_offsets(tfrecord_file: str):
 
 def test__dataset_reader(tfrecord_file: str):
     dataset_dir = str(Path(tfrecord_file).parent)
-    print("building index")
-    ds_created = tfr.TFRecordDatasetReader.build_index_from_dataset_dir(dataset_dir, _decode_fn)
-    print("building index - done")
+    ds_created = tfr.TFRecordDatasetReader.build_index_from_dataset_dir(dataset_dir, _index_fn)
     ds_loaded = tfr.TFRecordDatasetReader(dataset_dir)
     for ds in [ds_created, ds_loaded]:
         assert ds.dataset_dir == dataset_dir
@@ -85,9 +83,19 @@ def test__dataset_reader(tfrecord_file: str):
             _ = ds[5]
 
 
+def test__dataset_reader_selecting_by_indices(tfrecord_file: str):
+    reader = tfr.load_from_directory(
+        Path(tfrecord_file).parent,
+        index_fn=_index_fn,
+    )
+    assert reader[0]["int64_feature"].value == [10, 20, 30]
+    assert reader[[]] == []
+    assert reader[[0]] == [reader[0]]
+
+
 def test__dataset_reader_select(tfrecord_file: str):
     dataset_dir = str(Path(tfrecord_file).parent)
-    tfr.TFRecordDatasetReader.build_index_from_dataset_dir(dataset_dir, _decode_fn)
+    tfr.TFRecordDatasetReader.build_index_from_dataset_dir(dataset_dir, _index_fn)
     ds = tfr.TFRecordDatasetReader(dataset_dir)
     selected_rows, examples = ds.select("SELECT * FROM index")
     assert len(examples) == NUM_RECORDS
@@ -135,5 +143,5 @@ def _decode_demo_fn(feat: tfr.Feature) -> dict[str, tfr.Feature]:
     }
 
 
-def _decode_fn(feat: tfr.Feature) -> dict[str, tfr.Feature]:
+def _index_fn(feat: tfr.Feature) -> dict[str, tfr.Feature]:
     return {"column": feat["int64_feature"].value[0]}
