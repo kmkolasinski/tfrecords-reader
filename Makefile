@@ -22,9 +22,9 @@ clean:  ## Clean up build artifacts
 	rm -r src/build/  2> /dev/null || true
 	rm -r src/tfr_reader.egg-info/  2> /dev/null || true
 	rm -r dist/ 2> /dev/null || true
-	rm  src/tfr_reader/cython/*.so
-	rm  src/tfr_reader/cython/*.cpp
-	rm  src/tfr_reader/cython/*.html
+	rm  src/tfr_reader/cython/*.so 2> /dev/null || true
+	rm  src/tfr_reader/cython/*.cpp 2> /dev/null || true
+	rm  src/tfr_reader/cython/*.html 2> /dev/null || true
 
 precommit: ## Run precommits without actually commiting
 	SKIP=no-commit-to-branch pre-commit run --all-files
