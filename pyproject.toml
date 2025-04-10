@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=74.1", "Cython", "setuptools-protobuf"]
+requires = ["setuptools>=74.1", "Cython>3", "setuptools-protobuf"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -18,13 +18,18 @@ classifiers = [
 license = {text = "MIT"}
 dependencies = [
     "polars~=1.26",
-    "protobuf",
-    "gcsfs~=2025.3",
-    "fsspec~=2025.3",
-    "diskcache~=5.6"
 ]
 
 [project.optional-dependencies]
+
+# Google Storage features + protobuf decoder
+google = [
+    "gcsfs~=2025.3",
+    "fsspec~=2025.3",
+    "diskcache~=5.6",
+]
+
+# Dependencies for unit testing
 dev = [
     "coverage",  # testing
     "mypy",  # static type checking
@@ -36,6 +41,7 @@ dev = [
     "pytest-mock",
     "numpy",
     "Pillow",
+    "protobuf", # Creating example protobufs
 ]
 
 
@@ -143,5 +149,5 @@ strict = false
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = "tfr_reader.cython,google.protobuf,google.cloud,gcsfs,diskcache,numpy,google"
+module = "tfr_reader.cython,google.*,gcsfs,diskcache,numpy"
 ignore_missing_imports = true

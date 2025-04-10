@@ -43,7 +43,7 @@ class BytesList(BaseFeature[bytes]):
         return self.feature.bytes_list.value
 
     @property
-    def bytes(self) -> list[io.BytesIO]:
+    def bytes_io(self) -> list[io.BytesIO]:
         """Get the value of the bytes list as BytesIO objects."""
         return [io.BytesIO(b) for b in self.value]
 
@@ -54,6 +54,14 @@ class Feature:
     def __init__(self, feature):
         """Initialize the Feature object with a protobuf Feature."""
         self.feature = feature
+
+    def __len__(self) -> int:
+        """Get the number of features."""
+        return len(self.feature)
+
+    def __repr__(self):
+        """Get the string representation of the Feature object."""
+        return f"Feature({self.feature})"
 
     def __getitem__(self, key: str) -> BaseFeature:
         """Get the feature by key."""
@@ -79,12 +87,12 @@ def _cython_decode_fn(raw_record: bytes) -> Feature:
 
 
 _google_decode_fn = None
-TFRECORD_READER_DECODER_IMP: Literal["google", "cython"] = "cython"
+TFRECORD_READER_DECODER_IMP: Literal["protobuf", "cython"] = "cython"
 
 try:
     # https://github.com/protocolbuffers/protobuf/blob/main/python/README.md
     from google import protobuf
-    from google.protobuf import internal
+    from google.protobuf.internal import api_implementation
 
     from tfr_reader.example import example_pb2
 
@@ -93,20 +101,24 @@ try:
         proto.ParseFromString(raw_record)
         return Feature(proto.features.feature)
 
-    if internal.api_implementation.Type() == "python":
+    if api_implementation.Type() == "python":
         warnings.warn(
             f"Detected 'Python' protobuf API implementation type ({protobuf.__version__}). "
-            "Fallback to custom Cython decoder, maybe unsafe! To force official"
-            " decoder, set tfr.set_decoder_type('google') in the environment."
+            "Fallback to custom Cython decoder, maybe unsafe! To force official "
+            "Google decoder, you can set tfr.set_decoder_type('protobuf')"
         )
         TFRECORD_READER_DECODER_IMP = "cython"
 
 except ImportError:
+    warnings.warn(
+        "Google protobuf library not found. "
+        "Falling back to Cython decoder for TFRecord files, which may be unsafe. "
+    )
     TFRECORD_READER_DECODER_IMP = "cython"
 
 
 def decode(raw_record: bytes) -> Feature:
-    if TFRECORD_READER_DECODER_IMP == "google":
+    if TFRECORD_READER_DECODER_IMP == "protobuf":
         return _google_decode_fn(raw_record)
     if TFRECORD_READER_DECODER_IMP == "cython":
         return _cython_decode_fn(raw_record)

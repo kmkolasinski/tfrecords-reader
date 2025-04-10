@@ -104,6 +104,12 @@ def test__dataset_reader_demo(tmp_path: Path):
     tfr.TFRecordDatasetReader.build_index_from_dataset_dir(str(tmp_path), _decode_demo_fn)
     ds = tfr.TFRecordDatasetReader(str(tmp_path))
     assert ds.size == num_records
+    for i in range(num_records):
+        example = ds[i]
+        assert example["name"].value[0] == b"cat" if i % 2 == 0 else b"dog"
+        assert example["label"].value[0] == (1 if i % 2 == 0 else 0)
+        assert example["image_id"].value[0] == f"image-id-{i}".encode()
+        assert len(example) == 3  # noqa: PLR2004
 
 
 def test__complex_bytes():
