@@ -29,7 +29,7 @@ jobs:
       - name: Run tests (for base requirements)
         run: |
           source .venv/bin/activate
-          pytest test
+          pytest tests
       - name: Install + Google Dependencies
         run: |
           source .venv/bin/activate
@@ -37,4 +37,4 @@ jobs:
       - name: Run tests (protobuf and gcsfs) dependencies
         run: |
           source .venv/bin/activate
-          pytest test
+          pytest tests
