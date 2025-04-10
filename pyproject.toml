@@ -18,6 +18,7 @@ classifiers = [
 license = {text = "MIT"}
 dependencies = [
     "polars~=1.26",
+    "tqdm",
 ]
 
 [project.optional-dependencies]
