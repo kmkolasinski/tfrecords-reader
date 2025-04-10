@@ -61,7 +61,17 @@ class Feature:
 
     def __repr__(self):
         """Get the string representation of the Feature object."""
-        return f"Feature({self.feature})"
+        return f"Feature({set(self.feature.keys())})"
+
+    @property
+    def fields_names(self) -> list[str]:
+        """Get the names of the fields in the feature."""
+        return list(self.feature.keys())
+
+    @property
+    def fields(self) -> list[tuple[str, str]]:
+        """Get the types of the fields in the feature."""
+        return [(key, self.feature[key].WhichOneof("kind")) for key in self.feature]
 
     def __getitem__(self, key: str) -> BaseFeature:
         """Get the feature by key."""
