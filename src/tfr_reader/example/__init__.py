@@ -1,7 +1,7 @@
 from typing import Literal
 
 from tfr_reader.example import feature
-from tfr_reader.example.feature import Feature, FeatureDecodeFunc, decode
+from tfr_reader.example.feature import Feature, IndexFunc, decode
 
 
 def set_decoder_type(decoder_type: Literal["protobuf", "cython"]) -> None:
@@ -18,7 +18,7 @@ def set_decoder_type(decoder_type: Literal["protobuf", "cython"]) -> None:
 
 __all__ = [
     "Feature",
-    "FeatureDecodeFunc",
+    "IndexFunc",
     "decode",
     "set_decoder_type",
 ]

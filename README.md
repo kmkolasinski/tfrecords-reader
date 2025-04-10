@@ -8,11 +8,12 @@ pip install "tfr-reader"
 pip install "tfr-reader[google]"
 ```
 
-## Features
+## General Information
 * No **TensorFlow** dependency - this library implement custom TFRecord Reader
 * Protobuf is not required, this library contains cython decoder for TFRecord files
+* Compressed TFRecord files are supported
 * Fast random access to TFRecords i.e. you can read any example from the dataset without
-  reading the whole dataset e.g
+  reading the whole dataset e.g.
     ```python
     import tfr_reader as tfr
     tfrds = tfr.TFRecordDatasetReader("/path/to/directory/with/tfrecords")
@@ -32,6 +33,43 @@ pip install .
 pip install pip install "git+https://github.com/kmkolasinski/tfrecords-reader.git#egg=[google]"
 pip install ".[google]"
 ```
+
+## Quick Start
+
+```python
+import tensorflow_datasets as tfds
+import tfr_reader as tfr
+from PIL import Image
+import ipyplot
+
+dataset, dataset_info = tfds.load('oxford_flowers102', split='train', with_info=True)
+
+def index_fn(feature: tfr.Feature):
+    label = feature["label"].value[0]
+    return {
+        "label": label,
+        "name": dataset_info.features["label"].int2str(label)
+    }
+
+tfrds = tfr.load_from_directory(
+    dataset_info.data_dir,
+    filepattern="*.tfrecord*",
+    index_fn=index_fn,
+    override=True, # override the index if it exists
+)
+
+rows, examples = tfrds.select("select * from index where name ~ 'rose' limit 10")
+
+samples, names = [], []
+for k, example in enumerate(examples):
+    image = Image.open(example["image"].bytes_io[0]).resize((224, 224))
+    names.append(rows["name"][k])
+    samples.append(image)
+
+ipyplot.plot_images(samples, names)
+```
+![demo](resources/quickstart.png)
+
 
 ## Usage
 

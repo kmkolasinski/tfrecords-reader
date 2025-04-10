@@ -1,3 +1,4 @@
+import fnmatch
 import struct
 from concurrent import futures
 from pathlib import Path
@@ -106,15 +107,31 @@ class TFRecordDatasetReader:
     def build_index_from_dataset_dir(
         cls,
         dataset_dir: str,
-        feature_decode_fn: example.FeatureDecodeFunc,
+        index_fn: example.IndexFunc | None = None,
+        filepattern: str = "*.tfrecord",
         processes: int = 1,
     ) -> "TFRecordDatasetReader":
+        """Creates an index for all TFRecord files in a directory.
+
+        Args:
+            dataset_dir: Path to the directory containing tfrecord files.
+            index_fn: function to create additional columns in the index
+            filepattern: Pattern to match TFRecord files.
+            processes: Number of processes to use for parallel processing.
+
+        Returns:
+            dataset: indexed TFRecord dataset reader.
+        """
+
         storage = fs.get_file_system(dataset_dir)
         if not isinstance(storage, fs.LocalFileSystem):
             raise TypeError("Only local file system is supported for now.")
 
         data = indexer.create_index_for_directory(
-            dataset_dir, feature_decode_fn, processes=processes
+            dataset_dir,
+            index_fn=index_fn,
+            filepattern=filepattern,
+            processes=processes,
         )
         ds = pl.DataFrame(data).sort(by=["tfrecord_filename", "tfrecord_start"])
         ds.write_parquet(Path(dataset_dir) / INDEX_FILENAME)
@@ -174,11 +191,12 @@ class TFRecordDatasetReader:
 
 def inspect_dataset_example(
     dataset_dir: str,
+    filepattern: str = "*.tfrecord",
 ) -> tuple[example.Feature, list[dict[str, str]]]:
     """Inspects the TFRecord dataset and returns an example and its feature types."""
     storage = fs.get_file_system(dataset_dir)
     paths = storage.listdir(dataset_dir)
-    paths = sorted([path for path in paths if path.endswith(".tfrecord")])
+    paths = sorted([path for path in paths if fnmatch.fnmatch(path, filepattern)])
     LOGGER.info("Found N=%s TFRecord files ...", len(paths))
 
     with storage.open(paths[0], "rb") as file:
@@ -203,6 +221,27 @@ def inspect_dataset_example(
     ]
 
     return feature, feature_types
+
+
+def load_from_directory(
+    dataset_dir: str,
+    *,
+    # index options
+    filepattern: str = "*.tfrecord",
+    index_fn: example.IndexFunc | None = None,
+    processes: int = 1,
+    override: bool = False,
+) -> TFRecordDatasetReader:
+    """Creates an index for the TFRecord dataset."""
+    if (Path(dataset_dir) / INDEX_FILENAME).exists() and not override:
+        LOGGER.info(
+            "Index file already exists. Loading the dataset from the index ..."
+            "If you want to override the index, set override=True.",
+        )
+        return TFRecordDatasetReader(dataset_dir)
+    return TFRecordDatasetReader.build_index_from_dataset_dir(
+        dataset_dir, index_fn, filepattern, processes
+    )
 
 
 def join_path(base_path: str, suffix: str) -> str:

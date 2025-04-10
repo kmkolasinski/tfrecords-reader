@@ -8,7 +8,7 @@ from tfr_reader.cython import decoder
 
 T = TypeVar("T")
 
-FeatureDecodeFunc = Callable[["Feature"], dict[str, Any]]
+IndexFunc = Callable[["Feature"], dict[str, Any]]
 
 
 class BaseFeature(Generic[T], abc.ABC):
