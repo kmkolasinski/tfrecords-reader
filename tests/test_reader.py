@@ -1,10 +1,14 @@
 from pathlib import Path
 
+import numpy as np
 import pytest
+from PIL import Image
 
 import tfr_reader as tfr
 from tests import utils
 from tfr_reader import indexer
+from tfr_reader.example import decode
+from tfr_reader.example import example_pb2 as pb2
 
 NUM_RECORDS = 5
 
@@ -25,7 +29,9 @@ def test__inspect_dataset_example(tfrecord_file: str):
         {"key": "float_feature", "type": "float_list", "length": 3},
         {"key": "int64_feature", "type": "int64_list", "length": 3},
     ]
-    assert info == expected_info
+    expected_info_dict = {info[i]["key"]: info[i] for i in range(len(expected_info))}
+    info_dict = {info[i]["key"]: info[i] for i in range(len(info))}
+    assert info_dict == expected_info_dict
 
     assert feature["bytes_feature"].value[0] == b"A1"
     assert feature["float_feature"].value == pytest.approx([1.1, 2.2, 3.3])
@@ -57,7 +63,9 @@ def test__tfrecord_file_reader__invalid_offsets(tfrecord_file: str):
 
 def test__dataset_reader(tfrecord_file: str):
     dataset_dir = str(Path(tfrecord_file).parent)
+    print("building index")
     ds_created = tfr.TFRecordDatasetReader.build_index_from_dataset_dir(dataset_dir, _decode_fn)
+    print("building index - done")
     ds_loaded = tfr.TFRecordDatasetReader(dataset_dir)
     for ds in [ds_created, ds_loaded]:
         assert ds.dataset_dir == dataset_dir
@@ -96,6 +104,21 @@ def test__dataset_reader_demo(tmp_path: Path):
     tfr.TFRecordDatasetReader.build_index_from_dataset_dir(str(tmp_path), _decode_demo_fn)
     ds = tfr.TFRecordDatasetReader(str(tmp_path))
     assert ds.size == num_records
+
+
+def test__complex_bytes():
+    random_image = np.random.randint(0, 255, (10, 10, 3), dtype=np.uint8)  # noqa: NPY002
+    random_image_bytes = Image.fromarray(random_image).tobytes()
+
+    features = pb2.Features(
+        feature={
+            "image": pb2.Feature(bytes_list=pb2.BytesList(value=[random_image_bytes])),
+        }
+    )
+    example = pb2.Example(features=features)
+    example_bytes = example.SerializeToString()
+    restored = decode(example_bytes)
+    assert random_image_bytes == restored["image"].value[0]
 
 
 def _decode_demo_fn(feat: tfr.Feature) -> dict[str, tfr.Feature]:

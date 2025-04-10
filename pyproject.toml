@@ -34,13 +34,16 @@ dev = [
     "pytest-sugar~=0.9",
     "pytest-watch~=4.2.0",
     "pytest-mock",
+    "numpy",
+    "Pillow",
 ]
 
 
 [tool.setuptools]
 
 ext-modules = [
-    { name = "tfr_reader.cython.indexer", sources = ["src/tfr_reader/cython/indexer.pyx"] }
+    { name = "tfr_reader.cython.indexer", sources = ["src/tfr_reader/cython/indexer.pyx"], extra-compile-args=["-finline-functions", "-O3"] },
+    { name = "tfr_reader.cython.decoder", sources = ["src/tfr_reader/cython/decoder.pyx"], extra-compile-args=["-finline-functions", "-O3"] },
 ]
 
 [tool.setuptools.packages.find]
@@ -108,7 +111,8 @@ ignore = [
     "PTH118", #  `os.path.join()` should be replaced by `Path` with `/` operator
     "SIM115", #  Use a context manager for opening files
     "ISC001",
-    "G004" #  Logging statement uses f-string
+    "G004", #  Logging statement uses f-string
+    "B028", # Ignore missing stack explicit in warning.warn
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -139,5 +143,5 @@ strict = false
 follow_imports = "skip"
 
 [[tool.mypy.overrides]]
-module = "tfr_reader.cython,google.protobuf,google.cloud,gcsfs,diskcache"
+module = "tfr_reader.cython,google.protobuf,google.cloud,gcsfs,diskcache,numpy,google"
 ignore_missing_imports = true

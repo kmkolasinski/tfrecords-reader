@@ -15,6 +15,7 @@ build-proto:
 
 build-cython:
 	cythonize -a -i src/tfr_reader/cython/indexer.pyx --force
+	cythonize -a -i src/tfr_reader/cython/decoder.pyx --force
 
 clean:
 	rm -r build/  2> /dev/null || true

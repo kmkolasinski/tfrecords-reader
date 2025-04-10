@@ -6,6 +6,7 @@ from libc.stdio cimport FILE, fopen, fclose, fread, fseek, ftell, SEEK_CUR, SEEK
 from libc.stdint cimport uint64_t
 from cpython.bytes cimport PyBytes_FromStringAndSize
 from libc.stdlib cimport malloc, free
+from libc.string cimport memcpy
 
 cdef struct ExamplePointer:
     # bytes offset contains the offset of the example in the TFRecord file
@@ -18,17 +19,21 @@ cdef uint64_t unpack_bytes(unsigned char[8] length_bytes):
     """
     Unpack length_bytes into uint64_t length (little-endian)
     """
-    cdef uint64_t length = 0
+    cdef uint64_t value = 0
 
-    length |= length_bytes[0]
-    length |= length_bytes[1] << 8
-    length |= length_bytes[2] << 16
-    length |= length_bytes[3] << 24
-    length |= length_bytes[4] << 32
-    length |= length_bytes[5] << 40
-    length |= length_bytes[6] << 48
-    length |= length_bytes[7] << 56
-    return length
+    # length |= length_bytes[0]
+    # length |= length_bytes[1] << 8
+    # length |= length_bytes[2] << 16
+    # length |= length_bytes[3] << 24
+    # length |= length_bytes[4] << 32
+    # length |= length_bytes[5] << 40
+    # length |= length_bytes[6] << 48
+    # length |= length_bytes[7] << 56
+    # return length
+    #
+    # cdef float value
+    memcpy(&value, &length_bytes[0], sizeof(value))
+    return value
 
 cdef vector[ExamplePointer] create_tfrecord_pointers_index(str tfrecord_filename):
     cdef:

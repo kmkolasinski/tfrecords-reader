@@ -43,7 +43,7 @@ class TFRecordFileReader:
 
         # dropping the length and length_crc bytes for simplicity
         data = example_data[8 + 4 : -4 :]
-        return indexer.decode(data)
+        return example.decode(data)
 
     def _open(self):
         """Opens the TFRecord file for reading."""
@@ -190,7 +190,7 @@ def inspect_dataset_example(
         data = file.read(length)
         if not data or len(data) < length:
             raise OSError("Failed to read data!")
-        feature = indexer.decode(data)
+        feature = example.decode(data)
 
     keys = list(feature.feature)
     feature_types = [

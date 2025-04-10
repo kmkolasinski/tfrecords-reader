@@ -1,9 +1,10 @@
 import abc
 import io
+import warnings
 from collections.abc import Callable
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, Literal, TypeVar
 
-from tfr_reader.example import example_pb2
+from tfr_reader.cython import decoder
 
 T = TypeVar("T")
 
@@ -11,7 +12,7 @@ FeatureDecodeFunc = Callable[["Feature"], dict[str, Any]]
 
 
 class BaseFeature(Generic[T], abc.ABC):
-    def __init__(self, feature: example_pb2.Feature):
+    def __init__(self, feature):
         """Initialize the FloatList object with a protobuf FloatList."""
         self.feature = feature
 
@@ -50,7 +51,7 @@ class BytesList(BaseFeature[bytes]):
 class Feature:
     __slots__ = ("feature",)
 
-    def __init__(self, feature: example_pb2.Feature):
+    def __init__(self, feature):
         """Initialize the Feature object with a protobuf Feature."""
         self.feature = feature
 
@@ -70,3 +71,43 @@ class Feature:
         if kind == "bytes_list":
             return BytesList(feature)
         raise ValueError(f"Unknown feature kind: '{kind}' for '{key}'!")
+
+
+def _cython_decode_fn(raw_record: bytes) -> Feature:
+    proto = decoder.example_from_bytes(raw_record)
+    return Feature(proto.features.feature)
+
+
+_google_decode_fn = None
+TFRECORD_READER_DECODER_IMP: Literal["google", "cython"] = "cython"
+
+try:
+    # https://github.com/protocolbuffers/protobuf/blob/main/python/README.md
+    from google import protobuf
+    from google.protobuf import internal
+
+    from tfr_reader.example import example_pb2
+
+    def _google_decode_fn(raw_record: bytes) -> Feature:
+        proto = example_pb2.Example()
+        proto.ParseFromString(raw_record)
+        return Feature(proto.features.feature)
+
+    if internal.api_implementation.Type() == "python":
+        warnings.warn(
+            f"Detected 'Python' protobuf API implementation type ({protobuf.__version__}). "
+            "Fallback to custom Cython decoder, maybe unsafe! To force official"
+            " decoder, set tfr.set_decoder_type('google') in the environment."
+        )
+        TFRECORD_READER_DECODER_IMP = "cython"
+
+except ImportError:
+    TFRECORD_READER_DECODER_IMP = "cython"
+
+
+def decode(raw_record: bytes) -> Feature:
+    if TFRECORD_READER_DECODER_IMP == "google":
+        return _google_decode_fn(raw_record)
+    if TFRECORD_READER_DECODER_IMP == "cython":
+        return _cython_decode_fn(raw_record)
+    raise ValueError(f"Unknown decoder type: {TFRECORD_READER_DECODER_IMP}!")
