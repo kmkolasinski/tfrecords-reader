@@ -35,7 +35,7 @@ release: ## Create a new tag for release.
 	@echo "         Update version in pyproject.toml before running this command"
 	@echo "         and provide same tag value here."
 	@read -p "Version? (provide the next x.y.z semver) : " TAG
-	@git add pyproject.toml
+	@git add .
 	@git commit -m "release: version $${TAG} 🚀" --no-verify
 	echo "creating git tag : $${TAG}"
 	@git tag $${TAG}
