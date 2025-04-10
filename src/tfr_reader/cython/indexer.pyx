@@ -1,5 +1,6 @@
-# cython: language_level=3
+# cython: language_level=3, boundscheck=False, cdivision=True, wraparound=False, initializedcheck=False, nonecheck=False
 # distutils: language=c++
+# ##cython: linetrace=True
 
 from libcpp.vector cimport vector
 from libc.stdio cimport FILE, fopen, fclose, fread, fseek, ftell, SEEK_CUR, SEEK_SET
@@ -8,7 +9,8 @@ from cpython.bytes cimport PyBytes_FromStringAndSize
 from libc.stdlib cimport malloc, free
 from libc.string cimport memcpy
 
-cdef struct ExamplePointer:
+
+cdef struct example_pointer_t:
     # bytes offset contains the offset of the example in the TFRecord file
     uint64_t start
     uint64_t end
@@ -20,24 +22,12 @@ cdef uint64_t unpack_bytes(unsigned char[8] length_bytes):
     Unpack length_bytes into uint64_t length (little-endian)
     """
     cdef uint64_t value = 0
-
-    # length |= length_bytes[0]
-    # length |= length_bytes[1] << 8
-    # length |= length_bytes[2] << 16
-    # length |= length_bytes[3] << 24
-    # length |= length_bytes[4] << 32
-    # length |= length_bytes[5] << 40
-    # length |= length_bytes[6] << 48
-    # length |= length_bytes[7] << 56
-    # return length
-    #
-    # cdef float value
     memcpy(&value, &length_bytes[0], sizeof(value))
     return value
 
-cdef vector[ExamplePointer] create_tfrecord_pointers_index(str tfrecord_filename):
+cdef vector[example_pointer_t] create_tfrecord_pointers_index(str tfrecord_filename):
     cdef:
-        vector[ExamplePointer] pointers
+        vector[example_pointer_t] pointers
         FILE *f
         uint64_t start, end, length
         unsigned char length_bytes[8]
@@ -67,7 +57,7 @@ cdef vector[ExamplePointer] create_tfrecord_pointers_index(str tfrecord_filename
 
         # end is 4 + 4 + 8 + length
         end = start + 4 + 4 + 8 + length
-        pointers.push_back(ExamplePointer(start, end, length))
+        pointers.push_back(example_pointer_t(start, end, length))
 
         # Skip data and data CRC
         ret = fseek(f, length + 4, SEEK_CUR)
@@ -81,7 +71,7 @@ cdef vector[ExamplePointer] create_tfrecord_pointers_index(str tfrecord_filename
 cdef class TFRecordFileReader:
 
     cdef str tfrecord_filepath
-    cdef vector[ExamplePointer] pointers
+    cdef vector[example_pointer_t] pointers
     cdef FILE* file
 
     def __cinit__(self, str tfrecord_filepath):
@@ -116,7 +106,7 @@ cdef class TFRecordFileReader:
         """
         return self.pointers.size()
 
-    cpdef ExamplePointer get_pointer(self, uint64_t idx):
+    cpdef example_pointer_t get_pointer(self, uint64_t idx):
         """
         Retrieves the offset of the record at the specified index.
 
@@ -140,7 +130,7 @@ cdef class TFRecordFileReader:
         Returns:
             bytes: The raw serialized record data.
         """
-        cdef ExamplePointer pointer
+        cdef example_pointer_t pointer
         cdef uint64_t initial_position
         cdef uint64_t offset
         cdef unsigned char * data
