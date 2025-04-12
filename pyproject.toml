@@ -66,10 +66,6 @@ ext-modules = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.cython]
-annotate = true
-
-
 [tool.pytest.ini_options]
 testpaths = [
     "tests",

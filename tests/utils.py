@@ -1,4 +1,4 @@
-from tfr_reader.example import example_pb2 as pb2
+from tfr_reader.example import tfr_example_pb2 as pb2
 
 
 def create_dummy_example(index: int) -> pb2.Example:

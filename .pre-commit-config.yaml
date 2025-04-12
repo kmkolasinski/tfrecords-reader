@@ -30,8 +30,7 @@ repos:
         args: ["--python-version=3.11"]
         exclude: |
           (?x)^(
-              |src/tfr_reader/example/example_pb2.py
-              |src/tfr_reader/experimental.py
+              |src/tfr_reader/example/tfr_example_pb2.py
           )$
         additional_dependencies:
           - polars

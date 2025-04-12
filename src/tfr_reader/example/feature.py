@@ -114,10 +114,10 @@ try:
     from google import protobuf
     from google.protobuf.internal import api_implementation
 
-    from tfr_reader.example import example_pb2
+    from tfr_reader.example import tfr_example_pb2
 
     def _google_decode_fn(raw_record: bytes) -> Feature:
-        proto = example_pb2.Example()
+        proto = tfr_example_pb2.Example()
         proto.ParseFromString(raw_record)
         return Feature(proto.features.feature)
 
@@ -132,6 +132,12 @@ try:
 except ImportError:
     warnings.warn(
         "Google protobuf library not found. "
+        "Falling back to Cython decoder for TFRecord files, which may be unsafe. "
+    )
+    TFRECORD_READER_DECODER_IMP = "cython"
+except Exception as e:  # noqa: BLE001
+    warnings.warn(
+        f"Failed to import Google protobuf library: {e}. "
         "Falling back to Cython decoder for TFRecord files, which may be unsafe. "
     )
     TFRECORD_READER_DECODER_IMP = "cython"

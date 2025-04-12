@@ -8,7 +8,7 @@ import tfr_reader as tfr
 from tests import utils
 from tfr_reader import indexer
 from tfr_reader.example import decode
-from tfr_reader.example import example_pb2 as pb2
+from tfr_reader.example import tfr_example_pb2 as pb2
 
 NUM_RECORDS = 5
 
