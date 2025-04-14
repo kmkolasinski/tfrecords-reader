@@ -4,10 +4,63 @@ from multiprocessing import pool
 from pathlib import Path
 from typing import Any
 
+import polars as pl
 from tqdm import tqdm
 
 from tfr_reader import example
 from tfr_reader.cython import indexer
+
+INDEX_FILENAME = "tfrds-reader-index.parquet"
+
+
+def simple_index_fn(
+    feature: example.Feature,
+    label_field: str,
+    label_mapping: dict[int, dict[str, Any]],
+    default_value: dict[str, Any],
+) -> dict[str, Any]:
+    _label = feature[label_field].value[0]
+    return {"label": _label, **label_mapping.get(_label, default_value)}
+
+
+def create_simple_index(  # noqa: PLR0913
+    directory: str | Path,
+    label_field: str,
+    label_mapping: dict[int, dict[str, Any]],
+    default_value: dict[str, Any],
+    *,
+    filepattern: str = "*.tfrecord",
+    processes: int = 1,
+) -> pl.DataFrame:
+    """
+    Creates an index for a TFRecord dataset.
+    Args:
+        directory: Path to the directory containing *.tfrecord files.
+        label_field: Name of the field to use as the label.
+        label_mapping: Mapping of labels to their corresponding values.
+        default_value: Default value for labels not in the mapping.
+        filepattern: Pattern to match TFRecord files.
+        processes: Number of processes to use for parallel processing.
+
+    Returns:
+        pl.DataFrame: DataFrame containing the index data.
+    """
+    index_fn = functools.partial(
+        simple_index_fn,
+        label_field=label_field,
+        label_mapping=label_mapping,
+        default_value=default_value,
+    )
+
+    data = create_index_for_directory(
+        directory,
+        index_fn=index_fn,
+        filepattern=filepattern,
+        processes=processes,
+    )
+    ds = pl.DataFrame(data).sort(by=["tfrecord_filename", "tfrecord_start"])
+    ds.write_parquet(Path(directory) / INDEX_FILENAME)
+    return ds
 
 
 def create_index_for_tfrecord(

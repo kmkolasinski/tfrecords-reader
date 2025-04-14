@@ -11,7 +11,6 @@ from tfr_reader import example, indexer, logging
 from tfr_reader import filesystem as fs
 
 LOGGER = logging.Logger(__name__)
-INDEX_FILENAME = "tfrds-reader-index.parquet"
 
 
 class TFRecordFileReader:
@@ -83,7 +82,7 @@ class TFRecordDatasetReader:
         self.logger = logging.Logger(self.__class__.__name__, verbose)
 
         if index_df is None:
-            index_path = join_path(dataset_dir, INDEX_FILENAME)
+            index_path = join_path(dataset_dir, indexer.INDEX_FILENAME)
             if not self.storage.exists(index_path):
                 raise FileNotFoundError(
                     f"Index file {index_path} does not exist. Please create the index first.",
@@ -135,7 +134,7 @@ class TFRecordDatasetReader:
             processes=processes,
         )
         ds = pl.DataFrame(data).sort(by=["tfrecord_filename", "tfrecord_start"])
-        ds.write_parquet(Path(dataset_dir) / INDEX_FILENAME)
+        ds.write_parquet(Path(dataset_dir) / indexer.INDEX_FILENAME)
         return cls(str(dataset_dir), index_df=ds)
 
     def __getitem__(self, idx: int | Iterable[int]) -> example.Feature | list[example.Feature]:
@@ -236,7 +235,7 @@ def load_from_directory(
     override: bool = False,
 ) -> TFRecordDatasetReader:
     """Creates an index for the TFRecord dataset."""
-    if (Path(dataset_dir) / INDEX_FILENAME).exists() and not override:
+    if (Path(dataset_dir) / indexer.INDEX_FILENAME).exists() and not override:
         LOGGER.info(
             "Index file already exists. Loading the dataset from the index ..."
             "If you want to override the index, set override=True.",
