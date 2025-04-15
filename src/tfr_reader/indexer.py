@@ -24,7 +24,11 @@ def simple_index_fn(
     index_data = {"label": _label, **label_mapping.get(_label, default_value)}
     if extra_fields is not None:
         for field_name, index_column_name in extra_fields:
-            index_data[index_column_name] = feature[field_name].value[0]
+            field_value = feature[field_name].value[0]
+            if isinstance(field_value, bytes):
+                # decode bytes to string, to be stored in the index
+                field_value = field_value.decode()
+            index_data[index_column_name] = field_value
     return index_data
 
 

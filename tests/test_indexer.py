@@ -67,7 +67,10 @@ def test__create_simple_index__extra_fields(tmp_path: str):
         label_field=label_field,
         label_mapping=label_mapping,
         default_value=default_value,
-        extra_fields=[("int64_feature", "custom_label")],
+        extra_fields=[
+            ("int64_feature", "custom_label"),
+            ("bytes_feature", "custom_bytes"),
+        ],
         processes=2,
     )
     num_examples = 10
@@ -77,3 +80,5 @@ def test__create_simple_index__extra_fields(tmp_path: str):
     expected_labels = [(i + 1) * 10 for i in range(num_examples)]
     assert index_data["label"].to_list() == expected_labels
     assert index_data["custom_label"].to_list() == expected_labels
+    expected_bytes_values = [f"A{i + 1}" for i in range(num_examples)]
+    assert index_data["custom_bytes"].to_list() == expected_bytes_values
