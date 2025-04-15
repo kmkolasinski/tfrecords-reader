@@ -18,9 +18,14 @@ def simple_index_fn(
     label_field: str,
     label_mapping: dict[int, dict[str, Any]],
     default_value: dict[str, Any],
+    extra_fields: list[tuple[str, str]] | None = None,
 ) -> dict[str, Any]:
     _label = feature[label_field].value[0]
-    return {"label": _label, **label_mapping.get(_label, default_value)}
+    index_data = {"label": _label, **label_mapping.get(_label, default_value)}
+    if extra_fields is not None:
+        for field_name, index_column_name in extra_fields:
+            index_data[index_column_name] = feature[field_name].value[0]
+    return index_data
 
 
 def create_simple_index(  # noqa: PLR0913
@@ -29,6 +34,7 @@ def create_simple_index(  # noqa: PLR0913
     label_mapping: dict[int, dict[str, Any]],
     default_value: dict[str, Any],
     *,
+    extra_fields: list[tuple[str, str]] | None = None,
     filepattern: str = "*.tfrecord",
     processes: int = 1,
 ) -> pl.DataFrame:
@@ -39,6 +45,8 @@ def create_simple_index(  # noqa: PLR0913
         label_field: Name of the field to use as the label.
         label_mapping: Mapping of labels to their corresponding values.
         default_value: Default value for labels not in the mapping.
+        extra_fields: Additional fields to include in the index in format
+            (field_name, index_column_name).
         filepattern: Pattern to match TFRecord files.
         processes: Number of processes to use for parallel processing.
 
@@ -50,6 +58,7 @@ def create_simple_index(  # noqa: PLR0913
         label_field=label_field,
         label_mapping=label_mapping,
         default_value=default_value,
+        extra_fields=extra_fields,
     )
 
     data = create_index_for_directory(

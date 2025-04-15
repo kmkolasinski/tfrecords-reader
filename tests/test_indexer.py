@@ -55,3 +55,25 @@ def test__create_simple_index(tmp_path: str):
     assert index_data["name"].to_list() == expected_names
     expected_labels = [(i + 1) * 10 for i in range(num_examples)]
     assert index_data["label"].to_list() == expected_labels
+
+
+def test__create_simple_index__extra_fields(tmp_path: str):
+    label_field = "int64_feature"
+    label_mapping = {10: {"name": "a"}, 20: {"name": "b"}}
+    default_value = {"name": "none"}
+
+    index_data = indexer.create_simple_index(
+        tmp_path,
+        label_field=label_field,
+        label_mapping=label_mapping,
+        default_value=default_value,
+        extra_fields=[("int64_feature", "custom_label")],
+        processes=2,
+    )
+    num_examples = 10
+    assert len(index_data) == num_examples
+    expected_names = ["a", "b"] + ["none"] * (num_examples - 2)
+    assert index_data["name"].to_list() == expected_names
+    expected_labels = [(i + 1) * 10 for i in range(num_examples)]
+    assert index_data["label"].to_list() == expected_labels
+    assert index_data["custom_label"].to_list() == expected_labels
