@@ -1,4 +1,5 @@
 import functools
+import sys
 from collections import defaultdict
 from multiprocessing import pool
 from pathlib import Path
@@ -128,6 +129,7 @@ def create_index_for_tfrecords(
                 p.imap_unordered(map_fn, tfrecords_paths),
                 total=len(tfrecords_paths),
                 desc="Creating TFRecord Index",
+                file=sys.stdout,
             ),
         )
 
