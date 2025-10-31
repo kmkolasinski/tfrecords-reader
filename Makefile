@@ -25,6 +25,9 @@ clean:  ## Clean up build artifacts
 	rm  src/tfr_reader/cython/*.so 2> /dev/null || true
 	rm  src/tfr_reader/cython/*.cpp 2> /dev/null || true
 	rm  src/tfr_reader/cython/*.html 2> /dev/null || true
+	rm  src/tfr_reader/datasets/image_classification/*.so 2> /dev/null || true
+	rm  src/tfr_reader/datasets/image_classification/*.c* 2> /dev/null || true
+	rm  src/tfr_reader/datasets/image_classification/*.html 2> /dev/null || true
 
 precommit: ## Run precommits without actually commiting
 	SKIP=no-commit-to-branch pre-commit run --all-files

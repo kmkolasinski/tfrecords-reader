@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=74.1", "Cython>3", "setuptools-protobuf"]
+requires = ["setuptools>=74.1", "Cython>3", "setuptools-protobuf", "numpy"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,7 +8,7 @@ version = "0.8.0"
 description = "Tensorflow Record Reader with Random Access"
 readme = "README.md"
 license = "MIT"
-keywords = ["dataframe", "arrow", "out-of-core"]
+keywords = ["dataframe", "tfrecords"]
 
 authors = [
   {name = "Krzysztof Kolasinski"},
@@ -26,6 +26,8 @@ classifiers = [
 dependencies = [
     "polars~=1.26",
     "tqdm",
+    "numpy",
+    "opencv-python-headless",
 ]
 
 [project.urls]
@@ -56,15 +58,15 @@ dev = [
 ]
 
 
-[tool.setuptools]
 
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools]
 ext-modules = [
     { name = "tfr_reader.cython.indexer", sources = ["src/tfr_reader/cython/indexer.pyx"], extra-compile-args=["-finline-functions", "-O3"] },
     { name = "tfr_reader.cython.decoder", sources = ["src/tfr_reader/cython/decoder.pyx"], extra-compile-args=["-finline-functions", "-O3"] },
 ]
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = [
