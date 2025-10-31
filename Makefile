@@ -10,6 +10,11 @@ install: ## Install the package for development
 test:  ## Run unit tests
 	pytest tests/
 
+
+mypy: ## Run mypy type checks
+	mypy --python-version=3.11 --config-file=pyproject.toml
+
+
 build-proto: ## Generate Python code from proto files
 	protoc --proto_path=${PROTO_DIR} --python_out=${PROTO_DIR} ${PROTO_DIR}/tfr_example.proto
 

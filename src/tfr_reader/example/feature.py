@@ -4,7 +4,7 @@ import warnings
 from collections.abc import Callable
 from typing import Any, Generic, Literal, TypeVar
 
-from tfr_reader.cython import decoder
+from tfr_reader.cython import decoder  # type: ignore[attr-defined]
 
 T = TypeVar("T")
 
