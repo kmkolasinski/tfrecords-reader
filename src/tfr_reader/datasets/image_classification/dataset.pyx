@@ -105,6 +105,7 @@ cdef class TFRecordsImageDataset:
             interleave=interleave_files,
             repeat=repeat,
             interleave_block_size=block_size,
+            drop_remainder=True,
             seed=seed
         )
 

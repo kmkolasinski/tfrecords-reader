@@ -79,11 +79,8 @@ def test__tfrecords_image_dataset__partial_batch(tfrecord_files):
     )
 
     batches = list(dataset)
-
-    # Should have 2 batches (20, 10)
-    assert len(batches) == 2
+    assert len(batches) == 1
     assert batches[0][0].shape[0] == 20
-    assert batches[1][0].shape[0] == 10
 
 
 def test__tfrecords_image_dataset__shuffle(tfrecord_files):
