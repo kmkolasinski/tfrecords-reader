@@ -20,9 +20,9 @@ cdef class Int64List:
 cdef class Feature:
     cdef str key
     cdef str kind
-    cdef FloatList _float_list
-    cdef Int64List _int64_list
-    cdef BytesList _bytes_list
+    cdef FloatList float_list
+    cdef Int64List int64_list
+    cdef BytesList bytes_list
 
 
 cdef class Features:

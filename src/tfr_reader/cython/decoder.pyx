@@ -322,9 +322,9 @@ cdef class Feature:
     ):
         self.key = key
         self.kind = kind
-        self._float_list = float_list
-        self._int64_list = int64_list
-        self._bytes_list = bytes_list
+        self.float_list = float_list
+        self.int64_list = int64_list
+        self.bytes_list = bytes_list
 
     def WhichOneof(self, kind: str) -> str:
         # this follows the Google protobug API
@@ -334,19 +334,19 @@ cdef class Feature:
     def float_list(self) -> FloatList:
         if self.kind != 'float_list':
             raise Exception('Feature is not a float_list')
-        return self._float_list
+        return self.float_list
 
     @property
     def int64_list(self) -> Int64List:
         if self.kind != 'int64_list':
             raise Exception('Feature is not an int64_list')
-        return self._int64_list
+        return self.int64_list
 
     @property
     def bytes_list(self) -> BytesList:
         if self.kind != 'bytes_list':
             raise Exception('Feature is not a bytes_list')
-        return self._bytes_list
+        return self.bytes_list
 
 
 cdef class BytesList:

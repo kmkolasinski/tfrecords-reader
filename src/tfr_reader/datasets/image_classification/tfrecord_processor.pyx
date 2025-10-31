@@ -90,10 +90,10 @@ cdef class TFRecordProcessor:
 
         # Extract features at C level
         label_feature = example.features.feature['image/object/bbox/label']
-        label = label_feature._int64_list.value[0]
+        label = label_feature.int64_list.value[0]
 
         image_feature = example.features.feature['image/encoded']
-        image_data = image_feature._bytes_list.value[0]
+        image_data = image_feature.bytes_list.value[0]
 
         return {"image_bytes": image_data, "label": label}
 
