@@ -157,6 +157,11 @@ strict = false
 # tells `mypy` not to process this module when it's imported
 follow_imports = "skip"
 
+# Exclude build scripts from type checking
+exclude = [
+    "setup.py",
+]
+
 [[tool.mypy.overrides]]
-module = "tfr_reader.cython,google.*,gcsfs,diskcache,numpy"
+module = "tfr_reader.cython.*,google.*,gcsfs,diskcache,numpy,setuptools,Cython.*"
 ignore_missing_imports = true

@@ -3,13 +3,16 @@
 # cython: wraparound=False
 # cython: nonecheck=False
 # cython: cdivision=True
+# distutils: language=c++
 
 import numpy as np
+# noinspection PyUnresolvedReferences
 cimport numpy as cnp
 import cv2
 import random
-from tfr_reader.cython import indexer
-from tfr_reader import example as tfr_example
+from tfr_reader.cython cimport decoder
+from tfr_reader.cython.indexer cimport TFRecordFileReader
+from tfr_reader.cython.decoder cimport Example, Feature
 # noinspection PyUnresolvedReferences
 from cython.parallel cimport prange, parallel
 from cython cimport nogil
@@ -20,7 +23,7 @@ cdef class TFRecordProcessor:
     Cython class for efficient parallel reading and processing of TFRecord files.
 
     """
-    cdef object reader
+    cdef TFRecordFileReader reader
     cdef list indices
     cdef int current_idx
     cdef int total_examples
@@ -44,7 +47,7 @@ cdef class TFRecordProcessor:
             target_height: Target image height for resizing
             num_threads: Number of threads for parallel processing (default: 4, use 1 for sequential)
         """
-        self.reader = indexer.TFRecordFileReader(tfrecord_path)
+        self.reader = TFRecordFileReader(tfrecord_path)
         self.total_examples = len(self.reader)
         self.indices = list(range(self.total_examples))
         random.shuffle(self.indices)
@@ -64,7 +67,7 @@ cdef class TFRecordProcessor:
 
     cdef dict _read_example(self, int index):
         """
-        Read a single example from the TFRecord file.
+        Read a single example from the TFRecord file using fast C-level calls.
 
         Args:
             index: Index of the example to read
@@ -72,14 +75,25 @@ cdef class TFRecordProcessor:
         Returns:
             Dictionary with image_bytes and label
         """
-        cdef object example, feature
+        cdef bytes example_bytes
+        cdef Example example
+        cdef Feature label_feature
+        cdef Feature image_feature
         cdef int label
         cdef bytes image_data
 
-        example = self.reader.get_example(index)
-        feature = tfr_example.decode(example)
-        label = feature['image/object/bbox/label'].value[0]
-        image_data = feature['image/encoded'].value[0]
+        # Use fast C-level method to get raw bytes
+        example_bytes = self.reader.get_example_fast(index)
+
+        # Decode using C-level decoder
+        example = decoder.example_from_bytes(example_bytes)
+
+        # Extract features at C level
+        label_feature = example.features.feature['image/object/bbox/label']
+        label = label_feature._int64_list.value[0]
+
+        image_feature = example.features.feature['image/encoded']
+        image_data = image_feature._bytes_list.value[0]
 
         return {"image_bytes": image_data, "label": label}
 
