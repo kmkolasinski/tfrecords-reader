@@ -90,8 +90,8 @@ def create_index_for_tfrecord(
         pointer = reader.get_pointer(i)
 
         data["tfrecord_filename"].append(filename)
-        data["tfrecord_start"].append(pointer["start"])
-        data["tfrecord_end"].append(pointer["end"])
+        data["tfrecord_start"].append(pointer["start"])  # type: ignore  # noqa: PGH003
+        data["tfrecord_end"].append(pointer["end"])  # type: ignore  # noqa: PGH003
 
         if index_fn is not None:
             example_str = reader.get_example(i)

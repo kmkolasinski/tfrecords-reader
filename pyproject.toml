@@ -52,7 +52,6 @@ dev = [
     "pytest-sugar~=0.9",
     "pytest-watch~=4.2.0",
     "pytest-mock",
-    "numpy",
     "Pillow",
     "protobuf", # Creating example protobufs
 ]
@@ -137,6 +136,8 @@ ignore = [
     "D", # Missing docstring
     "ANN", # Annotations
     "SLF001", # Private member accessed
+    "PT011", # `pytest.raises(ValueError)` is too broad
+    "PLR2004"
 ]
 
 # Only allow autofix for these import-related and docstring rules
@@ -182,6 +183,7 @@ module = [
     "gcsfs",
     "diskcache",
     "numpy",
+    "numpy.typing",
     "setuptools",
     "Cython.*",
     "tqdm",
