@@ -5,11 +5,12 @@ This file is needed for extensions that require NumPy's include directory
 which can only be determined at build time.
 """
 
+import multiprocessing
+
 import numpy as np
 from Cython.Build import cythonize
 from setuptools import Extension, setup
 
-# Define all extensions that need NumPy
 extensions = [
     # Original TFRecordProcessor (backward compatibility)
     Extension(
@@ -51,6 +52,7 @@ setup(
     ext_modules=cythonize(
         extensions,
         annotate=True,
+        nthreads=multiprocessing.cpu_count(),  # Enable parallel compilation
         compiler_directives={
             "language_level": "3",
             "boundscheck": False,

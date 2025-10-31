@@ -2,6 +2,7 @@
 PrefetchBuffer: Asynchronous batch preparation with background threading.
 """
 
+import contextlib
 import queue
 import threading
 from collections.abc import Callable
@@ -52,16 +53,23 @@ class PrefetchBuffer:
 
                 if batch is None:
                     # End of data - put sentinel and stop
-                    self.queue.put(None)
+                    with contextlib.suppress(queue.Full):
+                        self.queue.put(None, timeout=1.0)
                     break
 
                 # Put in queue (blocks if queue is full)
-                if not self.stop_event.is_set():
-                    self.queue.put(batch, timeout=1.0)
+                while not self.stop_event.is_set():
+                    try:
+                        self.queue.put(batch, timeout=1.0)
+                        break  # Successfully added, move to next batch
+                    except queue.Full:
+                        # Queue is full, check stop event and retry
+                        continue
 
         except (RuntimeError, OSError) as e:
             self.exception = e
-            self.queue.put(None)  # Sentinel to unblock consumer
+            with contextlib.suppress(queue.Full):
+                self.queue.put(None, timeout=1.0)  # Sentinel to unblock consumer
 
     def get(self, timeout: float | None = None) -> tuple[np.ndarray, np.ndarray] | None:
         """

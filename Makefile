@@ -3,9 +3,11 @@ help: ## Print this message and exit
 
 PROTO_DIR=src/tfr_reader/example/
 
+
 install: ## Install the package for development
 	pip install uv
 	uv pip install -e .[dev]
+
 
 test:  ## Run unit tests
 	pytest tests/
