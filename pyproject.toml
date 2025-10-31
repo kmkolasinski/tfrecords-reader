@@ -191,3 +191,29 @@ module = [
     "requests.*",
 ]
 ignore_missing_imports = true
+
+# Ignore missing imports for Cython and other packages without stubs
+[[tool.mypy.overrides]]
+module = ["cython", "cython.*"]
+ignore_missing_imports = true
+
+[tool.pyright]
+# Pyright/Pylance configuration
+exclude = [
+    ".tox",
+    ".git",
+    "venv",
+    "build",
+    "**/__pycache__",
+]
+
+# Ignore Cython-specific issues in image_classification module (uses pure Python Cython mode)
+[[tool.pyright.overrides]]
+include = ["src/tfr_reader/datasets/image_classification/*.py"]
+reportAttributeAccessIssue = false
+reportMissingImports = false
+reportInvalidTypeForm = false
+reportGeneralTypeIssues = false
+reportPossiblyUnboundVariable = false
+reportCallIssue = false
+reportReturnType = false

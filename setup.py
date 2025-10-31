@@ -3,6 +3,9 @@
 The other Cython extensions (indexer, decoder) are defined in pyproject.toml.
 This file is needed for extensions that require NumPy's include directory
 which can only be determined at build time.
+
+All image_classification modules now use Cython Pure Python syntax (.py files)
+and are compiled via cythonize with numpy include directories.
 """
 
 import multiprocessing
@@ -11,40 +14,44 @@ import numpy as np
 from Cython.Build import cythonize
 from setuptools import Extension, setup
 
+# Define extensions with proper C++ and OpenMP configuration
 extensions = [
-    # Original TFRecordProcessor (backward compatibility)
     Extension(
         name="tfr_reader.datasets.image_classification.tfrecord_processor",
-        sources=["src/tfr_reader/datasets/image_classification/tfrecord_processor.pyx"],
+        sources=["src/tfr_reader/datasets/image_classification/tfrecord_processor.py"],
         include_dirs=[np.get_include(), "src"],
         extra_compile_args=["-O3", "-march=native", "-fopenmp"],
         extra_link_args=["-fopenmp"],
+        language="c++",
     ),
-    # New multi-file dataset components
     Extension(
         name="tfr_reader.datasets.image_classification.processor",
-        sources=["src/tfr_reader/datasets/image_classification/processor.pyx"],
+        sources=["src/tfr_reader/datasets/image_classification/processor.py"],
         include_dirs=[np.get_include(), "src"],
         extra_compile_args=["-finline-functions", "-O3", "-fopenmp"],
         extra_link_args=["-fopenmp"],
+        language="c++",
     ),
     Extension(
         name="tfr_reader.datasets.image_classification.sampler",
-        sources=["src/tfr_reader/datasets/image_classification/sampler.pyx"],
+        sources=["src/tfr_reader/datasets/image_classification/sampler.py"],
         include_dirs=[np.get_include(), "src"],
         extra_compile_args=["-finline-functions", "-O3"],
+        language="c++",
     ),
     Extension(
         name="tfr_reader.datasets.image_classification.multi_file_reader",
-        sources=["src/tfr_reader/datasets/image_classification/multi_file_reader.pyx"],
+        sources=["src/tfr_reader/datasets/image_classification/multi_file_reader.py"],
         include_dirs=[np.get_include(), "src"],
         extra_compile_args=["-finline-functions", "-O3"],
+        language="c++",
     ),
     Extension(
         name="tfr_reader.datasets.image_classification.dataset",
-        sources=["src/tfr_reader/datasets/image_classification/dataset.pyx"],
+        sources=["src/tfr_reader/datasets/image_classification/dataset.py"],
         include_dirs=[np.get_include(), "src"],
         extra_compile_args=["-finline-functions", "-O3"],
+        language="c++",
     ),
 ]
 
