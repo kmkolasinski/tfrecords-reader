@@ -4,8 +4,12 @@ Fast TensorFlow TFRecords reader for Python with Random access and Google Storag
 
 ```bash
 pip install "tfr-reader"
+# + Image classification dataset support
+pip install "tfr-reader[datasets]"
 # + Google Storage support
 pip install "tfr-reader[google]"
+# + All optional features
+pip install "tfr-reader[datasets,google]"
 ```
 
 ## General Information
@@ -23,16 +27,20 @@ pip install "tfr-reader[google]"
 
 ## Installation
 
+
 * Base installation with minimum requirements:
-```bash
-pip install pip install "git+https://github.com/kmkolasinski/tfrecords-reader.git"
-pip install .
-```
+    ```bash
+    pip install "git+https://github.com/kmkolasinski/tfrecords-reader.git"
+    ```
+* For image classification dataset features (requires numpy, cython, opencv):
+    ```bash
+    pip install "git+https://github.com/kmkolasinski/tfrecords-reader.git#egg=tfr-reader[datasets]"
+    pip install ".[datasets]"
+    ```
 * For extra Google Storage Cloud support use:
-```bash
-pip install pip install "git+https://github.com/kmkolasinski/tfrecords-reader.git#egg=[google]"
-pip install ".[google]"
-```
+    ```bash
+    pip install "git+https://github.com/kmkolasinski/tfrecords-reader.git#egg=tfr-reader[google]"
+    ```
 
 ## Quick Start
 

@@ -26,15 +26,19 @@ classifiers = [
 dependencies = [
     "polars~=1.26",
     "tqdm",
-    "numpy",
-    "cython",
-    "opencv-python-headless",
 ]
 
 [project.urls]
 Repository = "https://github.com/kmkolasinski/tfrecords-reader"
 
 [project.optional-dependencies]
+
+# Image classification dataset features
+datasets = [
+    "numpy",
+    "cython>3",
+    "opencv-python-headless",
+]
 
 # Google Storage features + protobuf decoder
 google = [
@@ -57,7 +61,6 @@ dev = [
     "Pillow",
     "protobuf", # Creating example protobufs
 ]
-
 
 
 [tool.setuptools.packages.find]

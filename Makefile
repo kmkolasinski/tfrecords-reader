@@ -6,7 +6,7 @@ PROTO_DIR=src/tfr_reader/example/
 
 install: ## Install the package for development
 	pip install uv
-	uv pip install -e .[dev]
+	uv pip install -e .[dev,datasets]
 
 
 test:  ## Run unit tests
