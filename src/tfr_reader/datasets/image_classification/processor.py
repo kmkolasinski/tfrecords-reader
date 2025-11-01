@@ -5,7 +5,7 @@ Handles parallel decoding, resizing, and color conversion.
 
 from typing import Any
 
-import cv2
+import cv2  # type: ignore[import-not-found]
 import cython
 import numpy as np
 
