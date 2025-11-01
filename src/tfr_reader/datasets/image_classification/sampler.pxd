@@ -21,7 +21,7 @@ cdef class BatchSampler:
 
     cdef list _build_global_index(self, list file_lengths)
     cdef list _build_interleaved_index(self, list file_lengths)
-    cdef void _shuffle_indices(self)
+    cpdef void shuffle_indices(self)
     cdef void _reset_epoch(self)
 
     @cython.locals(max_epochs=uint64_t, remaining_in_epoch=uint64_t)

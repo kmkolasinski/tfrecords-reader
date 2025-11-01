@@ -61,7 +61,7 @@ class BatchSampler:
 
         # Initial shuffle if requested
         if self.shuffle:
-            self._shuffle_indices()
+            self.shuffle_indices()
 
     def _build_global_index(self, file_lengths: list[int]) -> list[tuple[int, int]]:
         """
@@ -114,7 +114,7 @@ class BatchSampler:
                     file_positions[file_idx] += examples_in_block
         return index
 
-    def _shuffle_indices(self) -> None:
+    def shuffle_indices(self) -> None:
         """Shuffle the global index using Python's random module."""
         random.seed(self.random_seed)
         random.shuffle(self.global_index)
@@ -165,7 +165,7 @@ class BatchSampler:
         self.current_pos = 0
         self.epoch_count += 1
         if self.shuffle:
-            self._shuffle_indices()
+            self.shuffle_indices()
 
     def reset(self):
         """Reset the sampler to its initial state."""
@@ -173,7 +173,7 @@ class BatchSampler:
         self.epoch_count = 0
         self.global_index = list(self.original_index)
         if self.shuffle:
-            self._shuffle_indices()
+            self.shuffle_indices()
 
     def set_epoch(self, epoch: int):
         """
@@ -186,7 +186,7 @@ class BatchSampler:
         if self.shuffle:
             # Re-seed based on the original seed and epoch for reproducibility
             self.random_seed += epoch
-            self._shuffle_indices()
+            self.shuffle_indices()
 
     def __len__(self) -> int:
         """Return the total number of examples."""

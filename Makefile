@@ -20,6 +20,9 @@ mypy: ## Run mypy type checks
 build-proto: ## Generate Python code from proto files
 	protoc --proto_path=${PROTO_DIR} --python_out=${PROTO_DIR} ${PROTO_DIR}/tfr_example.proto
 
+build-ext: ## Build Cython extensions in place
+	python setup.py build_ext --inplace
+
 build-cython: ## Build Cython files with debug info and annotated HTML files
 	cythonize -a -i src/tfr_reader/datasets/image_classification/sampler.py --force
 	cythonize -a -i src/tfr_reader/cython/indexer.pyx --force
