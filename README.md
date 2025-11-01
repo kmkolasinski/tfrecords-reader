@@ -167,6 +167,39 @@ for i in range(len(tfrds)):
 ```
 
 
+### Image Classification Dataset
+
+For efficient batch processing of image classification datasets, you can use the `TFRecordsImageDataset` class which provides:
+* Multi-threaded data loading
+* Batch processing with configurable batch size
+* Image preprocessing (resizing)
+* Shuffling and prefetching
+* File interleaving for better data distribution
+
+```python
+from tfr_reader.datasets import TFRecordsImageDataset
+from tqdm import tqdm
+
+tfrecord_paths = ["/path/to/train.tfrecord"]
+
+dataset = TFRecordsImageDataset(
+    tfrecord_paths=tfrecord_paths,
+    input_size=(320, 320),  # (height, width)
+    batch_size=128,
+    num_threads=6,
+    shuffle=True,
+    interleave_files=True,
+    repeat=-1,
+    prefetch=2,
+)
+
+# Iterate through the dataset
+for images, labels in tqdm(dataset, total=len(dataset) // 128):
+    # images: numpy array of shape (batch_size, height, width, channels)
+    # labels: numpy array of shape (batch_size,)
+    pass
+```
+
 ### Custom Protobuf Decoder for TFRecord files
 
 If protobuf is not installed or it uses old and slow 'python' API
