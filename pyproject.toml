@@ -47,6 +47,7 @@ google = [
 dev = [
     "coverage",  # testing
     "mypy",  # static type checking
+    "opencv-stubs",  # type stubs for opencv-python
     "ruff",  # linting
     "pytest~=7.2",
     "pytest-cov~=4.0",

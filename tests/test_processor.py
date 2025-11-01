@@ -67,8 +67,9 @@ def test__image_processor__process_batch():
         raw_examples.append(example.SerializeToString())
 
     # Process batch
-    images, labels = processor.process_batch(raw_examples)
-
+    data = processor.process_batch(raw_examples)
+    assert data is not None
+    images, labels = data
     assert images.shape == (batch_size, 64, 64, 3)
     assert images.dtype == np.uint8
     assert labels.shape == (batch_size,)
@@ -83,10 +84,8 @@ def test__image_processor__process_batch__empty():
     """Test processing an empty batch."""
     processor = ImageProcessor(target_width=64, target_height=64, num_threads=1)
 
-    images, labels = processor.process_batch([])
-
-    assert images is None
-    assert labels is None
+    pair = processor.process_batch([])
+    assert pair is None
 
 
 def test__image_processor__different_sizes():
@@ -99,8 +98,9 @@ def test__image_processor__different_sizes():
         example = utils.create_image_example(0, width=256, height=256)
         raw_examples = [example.SerializeToString()]
 
-        images, labels = processor.process_batch(raw_examples)
-
+        data = processor.process_batch(raw_examples)
+        assert data is not None
+        images, _ = data
         assert images.shape == (1, height, width, 3)
 
 
@@ -117,8 +117,8 @@ def test__image_processor__parallel_processing():
         raw_examples.append(example.SerializeToString())
 
     # Process with both
-    images_single, labels_single = processor_single.process_batch(raw_examples)
-    images_multi, labels_multi = processor_multi.process_batch(raw_examples)
+    images_single, labels_single = processor_single.process_batch(raw_examples)  # type: ignore [misc]
+    images_multi, labels_multi = processor_multi.process_batch(raw_examples)  # type: ignore [misc]
 
     # Results should be identical
     np.testing.assert_array_equal(images_single, images_multi)

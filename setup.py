@@ -17,14 +17,6 @@ from setuptools import Extension, setup
 # Define extensions with proper C++ and OpenMP configuration
 extensions = [
     Extension(
-        name="tfr_reader.datasets.image_classification.tfrecord_processor",
-        sources=["src/tfr_reader/datasets/image_classification/tfrecord_processor.py"],
-        include_dirs=[np.get_include(), "src"],
-        extra_compile_args=["-O3", "-march=native", "-fopenmp"],
-        extra_link_args=["-fopenmp"],
-        language="c++",
-    ),
-    Extension(
         name="tfr_reader.datasets.image_classification.processor",
         sources=["src/tfr_reader/datasets/image_classification/processor.py"],
         include_dirs=[np.get_include(), "src"],
@@ -49,13 +41,6 @@ extensions = [
     # Extension(
     #     name="tfr_reader.datasets.image_classification.dataset",
     #     sources=["src/tfr_reader/datasets/image_classification/dataset.py"],
-    #     include_dirs=[np.get_include(), "src"],
-    #     extra_compile_args=["-finline-functions", "-O3"],
-    #     language="c++",
-    # ),
-    # Extension(
-    #     name="tfr_reader.datasets.image_classification.primes",
-    #     sources=["src/tfr_reader/datasets/image_classification/primes.py"],
     #     include_dirs=[np.get_include(), "src"],
     #     extra_compile_args=["-finline-functions", "-O3"],
     #     language="c++",

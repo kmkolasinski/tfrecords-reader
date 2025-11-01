@@ -52,6 +52,7 @@ class TFRecordsImageDataset:
             image_feature_key: Feature key for image data in TFRecord.
             label_feature_key: Feature key for label data in TFRecord.
         """
+
         if not tfrecord_paths:
             raise ValueError("tfrecord_paths cannot be empty")
 
@@ -139,7 +140,7 @@ class TFRecordsImageDataset:
             raise StopIteration
         return batch
 
-    def _generate_batch(self) -> tuple:
+    def _generate_batch(self) -> tuple | None:
         """
         Generate a single batch.
 
@@ -147,8 +148,8 @@ class TFRecordsImageDataset:
             A tuple of (images, labels) or None if no more data is available.
         """
         indices = self.sampler.next_batch(self.batch_size)
-        if not indices:
-            return None, None
+        if indices is None or len(indices) == 0:
+            return None
 
         raw_examples: list = self.file_reader.get_examples_batch(indices)
         return self.image_processor.process_batch(raw_examples)
@@ -191,9 +192,9 @@ class TFRecordsImageDataset:
 
     def close(self):
         """Close all resources."""
-        if self.prefetch_buffer is not None:
+        if hasattr(self, "prefetch_buffer") and self.prefetch_buffer is not None:
             self.prefetch_buffer.stop()
-        if self.file_reader is not None:
+        if hasattr(self, "file_reader") and self.file_reader is not None:
             self.file_reader.close_all()
 
     def __del__(self):
