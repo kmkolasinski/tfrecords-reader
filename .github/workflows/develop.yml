@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ develop ]
+    branches: [ develop, main ]
   pull_request:
-    branches: [ develop ]
+    branches: [ develop, main ]
 
 jobs:
 
@@ -25,7 +25,7 @@ jobs:
           pip install uv
           uv venv
           source .venv/bin/activate
-          uv pip install -e ".[dev]"
+          uv pip install -e ".[dev,datasets]"
       - name: Run tests (for base requirements)
         run: |
           source .venv/bin/activate
@@ -33,7 +33,7 @@ jobs:
       - name: Install + Google Dependencies
         run: |
           source .venv/bin/activate
-          uv pip install -e ".[google]"
+          uv pip install -e ".[google,datasets]"
       - name: Run tests (protobuf and gcsfs) dependencies
         run: |
           source .venv/bin/activate

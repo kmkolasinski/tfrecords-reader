@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=74.1", "Cython>3", "setuptools-protobuf"]
+requires = ["setuptools>=74.1", "Cython>3", "setuptools-protobuf", "numpy"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,7 +8,7 @@ version = "0.8.0"
 description = "Tensorflow Record Reader with Random Access"
 readme = "README.md"
 license = "MIT"
-keywords = ["dataframe", "arrow", "out-of-core"]
+keywords = ["dataframe", "tfrecords"]
 
 authors = [
   {name = "Krzysztof Kolasinski"},
@@ -33,6 +33,13 @@ Repository = "https://github.com/kmkolasinski/tfrecords-reader"
 
 [project.optional-dependencies]
 
+# Image classification dataset features
+datasets = [
+    "numpy",
+    "cython>3",
+    "opencv-python-headless",
+]
+
 # Google Storage features + protobuf decoder
 google = [
     "gcsfs~=2025.3",
@@ -44,27 +51,26 @@ google = [
 dev = [
     "coverage",  # testing
     "mypy",  # static type checking
+    "opencv-stubs",  # type stubs for opencv-python
     "ruff",  # linting
     "pytest~=7.2",
     "pytest-cov~=4.0",
     "pytest-sugar~=0.9",
     "pytest-watch~=4.2.0",
     "pytest-mock",
-    "numpy",
     "Pillow",
     "protobuf", # Creating example protobufs
 ]
 
 
-[tool.setuptools]
+[tool.setuptools.packages.find]
+where = ["src"]
 
+[tool.setuptools]
 ext-modules = [
     { name = "tfr_reader.cython.indexer", sources = ["src/tfr_reader/cython/indexer.pyx"], extra-compile-args=["-finline-functions", "-O3"] },
     { name = "tfr_reader.cython.decoder", sources = ["src/tfr_reader/cython/decoder.pyx"], extra-compile-args=["-finline-functions", "-O3"] },
 ]
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = [
@@ -126,6 +132,8 @@ ignore = [
     "ISC001",
     "G004", #  Logging statement uses f-string
     "B028", # Ignore missing stack explicit in warning.warn
+    "N802", # Function name should be lowercase
+    "FBT003" # Boolean-typed keyword argument in function definition
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -134,6 +142,8 @@ ignore = [
     "D", # Missing docstring
     "ANN", # Annotations
     "SLF001", # Private member accessed
+    "PT011", # `pytest.raises(ValueError)` is too broad
+    "PLR2004"
 ]
 
 # Only allow autofix for these import-related and docstring rules
@@ -143,18 +153,52 @@ fixable = ["F401", "F403", "I001", "D411", "D415", "D208", "D209", "RET504"]
 convention = "google"
 
 [tool.mypy]
+# Drop problematic files which are causing errors like:
+# mypy error: Duplicate module named ...
+exclude = [
+    "setup.py",
+    "tests/__init__.py",
+    "src/tfr_reader/example/tfr_example_pb2.py",
+]
+
+files = [
+    "src/",
+    "tests/",
+]
+
+mypy_path = [
+    "src/",
+]
+
 show_column_numbers = true
 show_error_codes = true
 
-namespace_packages = false
-mypy_path = "src/"
-explicit_package_bases = false
+namespace_packages = true
+explicit_package_bases = true
 ignore_missing_imports = false
 check_untyped_defs = true
 strict = false
 # tells `mypy` not to process this module when it's imported
 follow_imports = "skip"
 
+
 [[tool.mypy.overrides]]
-module = "tfr_reader.cython,google.*,gcsfs,diskcache,numpy"
+module = [
+    "tfr_reader.cython.*",
+    "google.*",
+    "gcsfs",
+    "diskcache",
+    "numpy",
+    "numpy.typing",
+    "setuptools",
+    "Cython.*",
+    "tqdm",
+    "PIL",
+    "requests.*",
+]
+ignore_missing_imports = true
+
+# Ignore missing imports for Cython and other packages without stubs
+[[tool.mypy.overrides]]
+module = ["cython", "cython.*"]
 ignore_missing_imports = true

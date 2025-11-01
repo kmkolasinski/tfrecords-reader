@@ -300,26 +300,18 @@ cdef Int64List int64_list_from_bytes(const unsigned char* buffer, int64_t length
     return Int64List(value)
 
 
+
 cdef class Example:
-    cdef public Features features
     def __init__(self, Features features):
         self.features = features
 
 
 cdef class Features:
-    cdef public dict[str, Feature] feature
     def __init__(self, dict[str, Feature] feature):
         self.feature = feature  # dict mapping string to Feature
 
 
 cdef class Feature:
-    cdef str key
-    cdef str kind
-    # one of implementation
-    cdef FloatList _float_list
-    cdef Int64List _int64_list
-    cdef BytesList _bytes_list
-
     def __init__(
         self,
         str key,
@@ -330,9 +322,9 @@ cdef class Feature:
     ):
         self.key = key
         self.kind = kind
-        self._float_list = float_list
-        self._int64_list = int64_list
-        self._bytes_list = bytes_list
+        self.float_list = float_list
+        self.int64_list = int64_list
+        self.bytes_list = bytes_list
 
     def WhichOneof(self, kind: str) -> str:
         # this follows the Google protobug API
@@ -342,24 +334,22 @@ cdef class Feature:
     def float_list(self) -> FloatList:
         if self.kind != 'float_list':
             raise Exception('Feature is not a float_list')
-        return self._float_list
+        return self.float_list
 
     @property
     def int64_list(self) -> Int64List:
         if self.kind != 'int64_list':
             raise Exception('Feature is not an int64_list')
-        return self._int64_list
+        return self.int64_list
 
     @property
     def bytes_list(self) -> BytesList:
         if self.kind != 'bytes_list':
             raise Exception('Feature is not a bytes_list')
-        return self._bytes_list
+        return self.bytes_list
 
 
 cdef class BytesList:
-    cdef public list[bytes] value
-
     def __init__(self, list[bytes] value):
         self.value = value
 
@@ -371,8 +361,6 @@ cdef class BytesList:
 
 
 cdef class FloatList:
-    cdef public vector[float] value
-
     def __init__(self, vector[float] value):
         self.value = value
 
@@ -381,8 +369,6 @@ cdef class FloatList:
 
 
 cdef class Int64List:
-    cdef public vector[int64_t] value
-
     def __init__(self, vector[int64_t] value):
         self.value = value
 

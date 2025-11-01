@@ -4,8 +4,12 @@ Fast TensorFlow TFRecords reader for Python with Random access and Google Storag
 
 ```bash
 pip install "tfr-reader"
+# + Image classification dataset support
+pip install "tfr-reader[datasets]"
 # + Google Storage support
 pip install "tfr-reader[google]"
+# + All optional features
+pip install "tfr-reader[datasets,google]"
 ```
 
 ## General Information
@@ -23,16 +27,20 @@ pip install "tfr-reader[google]"
 
 ## Installation
 
+
 * Base installation with minimum requirements:
-```bash
-pip install pip install "git+https://github.com/kmkolasinski/tfrecords-reader.git"
-pip install .
-```
+    ```bash
+    pip install "git+https://github.com/kmkolasinski/tfrecords-reader.git"
+    ```
+* For image classification dataset features (requires numpy, cython, opencv):
+    ```bash
+    pip install "git+https://github.com/kmkolasinski/tfrecords-reader.git#egg=tfr-reader[datasets]"
+    pip install ".[datasets]"
+    ```
 * For extra Google Storage Cloud support use:
-```bash
-pip install pip install "git+https://github.com/kmkolasinski/tfrecords-reader.git#egg=[google]"
-pip install ".[google]"
-```
+    ```bash
+    pip install "git+https://github.com/kmkolasinski/tfrecords-reader.git#egg=tfr-reader[google]"
+    ```
 
 ## Quick Start
 
@@ -158,6 +166,39 @@ for i in range(len(tfrds)):
     label = example["label"].value[0]
 ```
 
+
+### Image Classification Dataset
+
+For efficient batch processing of image classification datasets, you can use the `TFRecordsImageDataset` class which provides:
+* Multi-threaded data loading
+* Batch processing with configurable batch size
+* Image preprocessing (resizing)
+* Shuffling and prefetching
+* File interleaving for better data distribution
+
+```python
+from tfr_reader.datasets import TFRecordsImageDataset
+from tqdm import tqdm
+
+tfrecord_paths = ["/path/to/train.tfrecord"]
+
+dataset = TFRecordsImageDataset(
+    tfrecord_paths=tfrecord_paths,
+    input_size=(320, 320),  # (height, width)
+    batch_size=128,
+    num_threads=6,
+    shuffle=True,
+    interleave_files=True,
+    repeat=-1,
+    prefetch=2,
+)
+
+# Iterate through the dataset
+for images, labels in tqdm(dataset, total=len(dataset) // 128):
+    # images: numpy array of shape (batch_size, height, width, channels)
+    # labels: numpy array of shape (batch_size,)
+    pass
+```
 
 ### Custom Protobuf Decoder for TFRecord files
 

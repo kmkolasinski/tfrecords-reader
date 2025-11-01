@@ -3,28 +3,36 @@ help: ## Print this message and exit
 
 PROTO_DIR=src/tfr_reader/example/
 
+
 install: ## Install the package for development
 	pip install uv
-	uv pip install -e .[dev]
+	uv pip install -e .[dev,datasets]
+
 
 test:  ## Run unit tests
 	pytest tests/
 
+
+mypy: ## Run mypy type checks
+	mypy --python-version=3.11 --config-file=pyproject.toml
+
+
 build-proto: ## Generate Python code from proto files
 	protoc --proto_path=${PROTO_DIR} --python_out=${PROTO_DIR} ${PROTO_DIR}/tfr_example.proto
 
-build-cython: ## Build Cython files with debug info and annotated HTML files
-	cythonize -a -i src/tfr_reader/cython/indexer.pyx --force
-	cythonize -a -i src/tfr_reader/cython/decoder.pyx --force
+
+build-ext: ## Build Cython extensions in place
+	python setup.py build_ext --inplace
+
 
 clean:  ## Clean up build artifacts
-	rm -r build/  2> /dev/null || true
-	rm -r src/build/  2> /dev/null || true
-	rm -r src/tfr_reader.egg-info/  2> /dev/null || true
-	rm -r dist/ 2> /dev/null || true
-	rm  src/tfr_reader/cython/*.so 2> /dev/null || true
-	rm  src/tfr_reader/cython/*.cpp 2> /dev/null || true
-	rm  src/tfr_reader/cython/*.html 2> /dev/null || true
+	rm -rf build/ dist/ 2> /dev/null || true
+	find . -type d -name "*.egg-info" -exec rm -rf {} + 2> /dev/null || true
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2> /dev/null || true
+	find src/ -type f -name "*.so" -delete 2> /dev/null || true
+	find src/ -type f -name "*.cpp" -delete 2> /dev/null || true
+	find src/ -type f -name "*.c" -delete 2> /dev/null || true
+	find src/ -type f -name "*.html" -delete 2> /dev/null || true
 
 precommit: ## Run precommits without actually commiting
 	SKIP=no-commit-to-branch pre-commit run --all-files

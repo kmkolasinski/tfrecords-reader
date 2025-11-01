@@ -3,6 +3,7 @@ import struct
 from collections.abc import Iterable
 from concurrent import futures
 from pathlib import Path
+from typing import overload
 
 import polars as pl
 from tqdm import tqdm
@@ -70,14 +71,14 @@ class TFRecordFileReader:
 class TFRecordDatasetReader:
     def __init__(
         self,
-        dataset_dir: str,
+        dataset_dir: str | Path,
         index_df: pl.DataFrame | None = None,
         verbose: bool = True,
     ):
         """Initializes the dataset with the TFRecord files and their index."""
 
         self.storage = fs.get_file_system(dataset_dir)
-        self.dataset_dir = dataset_dir
+        self.dataset_dir = str(dataset_dir)
         self.verbose = verbose
         self.logger = logging.Logger(self.__class__.__name__, verbose)
 
@@ -106,7 +107,7 @@ class TFRecordDatasetReader:
     @classmethod
     def build_index_from_dataset_dir(
         cls,
-        dataset_dir: str,
+        dataset_dir: str | Path,
         index_fn: example.IndexFunc | None = None,
         filepattern: str = "*.tfrecord",
         processes: int = 1,
@@ -137,6 +138,12 @@ class TFRecordDatasetReader:
         ds.write_parquet(Path(dataset_dir) / indexer.INDEX_FILENAME)
         return cls(str(dataset_dir), index_df=ds)
 
+    @overload
+    def __getitem__(self, idx: int) -> example.Feature: ...
+
+    @overload
+    def __getitem__(self, idx: Iterable[int]) -> list[example.Feature]: ...
+
     def __getitem__(self, idx: int | Iterable[int]) -> example.Feature | list[example.Feature]:
         """Retrieves the TFRecord at the specified index.
 
@@ -147,7 +154,7 @@ class TFRecordDatasetReader:
             feature: The raw serialized record data as a Feature object.
         """
         if isinstance(idx, Iterable):
-            return [self[i] for i in idx]
+            return [self[i] for i in idx]  # type: ignore[misc]
         if idx < 0 or idx >= self.size:
             raise IndexError(f"Index {idx=} out of bounds, dataset size={self.size}")
         offsets = self.index_df.row(idx, named=True)
@@ -226,7 +233,7 @@ def inspect_dataset_example(
 
 
 def load_from_directory(
-    dataset_dir: str,
+    dataset_dir: str | Path,
     *,
     # index options
     filepattern: str = "*.tfrecord",
@@ -246,7 +253,8 @@ def load_from_directory(
     )
 
 
-def join_path(base_path: str, suffix: str) -> str:
-    if not base_path.endswith("/"):
-        base_path += "/"
-    return base_path + suffix
+def join_path(base_path: str | Path, suffix: str) -> str:
+    base_str = str(base_path)
+    if not base_str.endswith("/"):
+        base_str += "/"
+    return base_str + suffix

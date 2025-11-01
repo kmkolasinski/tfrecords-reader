@@ -54,10 +54,10 @@ def test__tfrecord_file_reader(tfrecord_file: str):
 
 def test__tfrecord_file_reader__invalid_offsets(tfrecord_file: str):
     reader = tfr.TFRecordFileReader(tfrecord_file)
-    with reader, pytest.raises(Exception):  # noqa: B017, PT011
+    with reader, pytest.raises(Exception):  # noqa: B017
         reader.get_example(0, 20)
 
-    with pytest.raises(OSError):  # noqa: PT011
+    with pytest.raises(OSError):
         reader.get_example(0, 20)
 
 
@@ -120,7 +120,7 @@ def test__dataset_reader_demo(tmp_path: Path):
         assert example["name"].value[0] == b"cat" if i % 2 == 0 else b"dog"
         assert example["label"].value[0] == (1 if i % 2 == 0 else 0)
         assert example["image_id"].value[0] == f"image-id-{i}".encode()
-        assert len(example) == 3  # noqa: PLR2004
+        assert len(example) == 3
 
 
 def test__complex_bytes():
