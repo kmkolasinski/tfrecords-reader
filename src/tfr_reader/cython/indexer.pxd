@@ -21,4 +21,5 @@ cdef class TFRecordFileReader:
     cdef size_t size(self)
     cdef vector[example_pointer_t] _create_or_load_index(self, str tfrecord_filepath, bool save_index)
     cpdef example_pointer_t get_pointer(self, uint64_t idx)
+    cpdef list get_pointers(self)
     cdef bytes get_example_fast(self, uint64_t idx)

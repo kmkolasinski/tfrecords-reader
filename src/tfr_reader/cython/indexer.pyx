@@ -54,6 +54,12 @@ cdef class TFRecordFileReader:
         """
         return self.pointers.size()
 
+    cpdef list[example_pointer_t] get_pointers(self):
+        """
+        Returns the list of example pointers.
+        """
+        return [self.pointers[i] for i in range(self.pointers.size())]
+
     cdef vector[example_pointer_t] _create_or_load_index(self, str tfrecord_filepath, bool save_index):
         """
         Creates index for the TFRecord file or loads it from a file if it exists and is up-to-date.

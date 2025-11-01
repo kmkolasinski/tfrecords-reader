@@ -24,6 +24,6 @@ cdef class BatchSampler:
     cpdef void shuffle_indices(self)
     cdef void _reset_epoch(self)
 
-    @cython.locals(max_epochs=uint64_t, remaining_in_epoch=uint64_t)
+    @cython.locals(max_epochs=uint64_t, remaining_in_epoch=uint64_t, actual_size=uint64_t)
     cpdef object next_batch(self, uint64_t batch_size)
     cpdef void reset(self)

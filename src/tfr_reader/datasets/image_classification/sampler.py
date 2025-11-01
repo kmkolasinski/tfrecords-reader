@@ -140,7 +140,7 @@ class BatchSampler:
 
         # Determine the actual size of the next batch
         remaining_in_epoch = self.total_examples - self.current_pos
-        actual_size: int = min(batch_size, remaining_in_epoch)
+        actual_size = min(batch_size, remaining_in_epoch)
 
         if actual_size == 0:
             return None
