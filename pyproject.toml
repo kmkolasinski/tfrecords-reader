@@ -27,6 +27,7 @@ dependencies = [
     "polars~=1.26",
     "tqdm",
     "numpy",
+    "cython",
     "opencv-python-headless",
 ]
 
@@ -128,6 +129,7 @@ ignore = [
     "G004", #  Logging statement uses f-string
     "B028", # Ignore missing stack explicit in warning.warn
     "N802", # Function name should be lowercase
+    "FBT003" # Boolean-typed keyword argument in function definition
 ]
 
 [tool.ruff.lint.per-file-ignores]

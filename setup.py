@@ -53,6 +53,13 @@ extensions = [
         extra_compile_args=["-finline-functions", "-O3"],
         language="c++",
     ),
+    Extension(
+        name="tfr_reader.datasets.image_classification.primes",
+        sources=["src/tfr_reader/datasets/image_classification/primes.py"],
+        include_dirs=[np.get_include(), "src"],
+        extra_compile_args=["-finline-functions", "-O3"],
+        language="c++",
+    ),
 ]
 
 setup(

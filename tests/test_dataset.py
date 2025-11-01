@@ -107,7 +107,7 @@ def test__tfrecords_image_dataset__shuffle(tfrecord_files):
         interleave_files=False,
         repeat=1,
         prefetch=0,
-        seed=43,  # Different seed
+        seed=1,  # Different seed
         save_index=False,
     )
 
