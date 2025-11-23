@@ -27,11 +27,11 @@ class TFRecordsImageDataset:
         repeat: int = -1,
         prefetch: int = 3,
         max_open_files: int = 16,
-        interleave_block_size: int | None = None,
         seed: int | None = None,
         save_index: bool = True,
         image_feature_key: str = "image/encoded",
         label_feature_key: str = "image/object/bbox/label",
+        verbose: bool = False,
     ):
         """
         Initialize the TFRecordsImageDataset.
@@ -59,14 +59,15 @@ class TFRecordsImageDataset:
         if batch_size < 1:
             raise ValueError("batch_size must be at least 1")
 
-        block_size: int = batch_size if interleave_block_size is None else interleave_block_size
-
         print("Initializing TFRecordsImageDataset...")
 
-        self.file_reader: MultiFileReader = MultiFileReader(
-            tfrecord_paths, max_open_files=max_open_files, save_index=save_index
+        self.file_reader = MultiFileReader(
+            tfrecord_paths,
+            max_open_files=max_open_files,
+            save_index=save_index,
+            verbose=verbose,
         )
-        self.image_processor: ImageProcessor = ImageProcessor(
+        self.image_processor = ImageProcessor(
             target_width=input_size[1],
             target_height=input_size[0],
             num_threads=num_threads,
@@ -74,13 +75,12 @@ class TFRecordsImageDataset:
             label_feature_key=label_feature_key,
         )
 
-        file_lengths: list[int] = self.file_reader.get_file_lengths()
         self.sampler = BatchSampler(
-            file_lengths=file_lengths,
+            file_lengths=self.file_reader.get_file_lengths(),
             shuffle=shuffle,
             interleave=interleave_files,
             repeat=repeat,
-            interleave_block_size=block_size,
+            interleave_block_size=max_open_files,
             drop_remainder=True,
             seed=seed,
         )

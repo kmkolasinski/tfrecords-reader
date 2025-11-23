@@ -43,6 +43,7 @@ try:
     ext_modules = cythonize(
         extensions,
         nthreads=multiprocessing.cpu_count(),  # Enable parallel compilation
+        annotate=True,
         compiler_directives={
             "language_level": "3",
             "boundscheck": False,
