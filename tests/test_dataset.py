@@ -132,7 +132,6 @@ def test__tfrecords_image_dataset__interleave(tfrecord_files):
         interleave_files=True,
         repeat=1,
         prefetch=0,
-        interleave_block_size=5,
         save_index=False,
     )
 

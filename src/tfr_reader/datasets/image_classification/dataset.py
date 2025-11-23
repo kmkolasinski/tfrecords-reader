@@ -31,6 +31,7 @@ class TFRecordsImageDataset:
         save_index: bool = True,
         image_feature_key: str = "image/encoded",
         label_feature_key: str = "image/object/bbox/label",
+        processing_backend: str = "cython",
         verbose: bool = False,
     ):
         """
@@ -51,6 +52,7 @@ class TFRecordsImageDataset:
             save_index: Whether to save/load indices to/from disk.
             image_feature_key: Feature key for image data in TFRecord.
             label_feature_key: Feature key for label data in TFRecord.
+            processing_backend: Backend to use for image processing ("cython" or "opencv").
         """
 
         if not tfrecord_paths:
@@ -73,6 +75,7 @@ class TFRecordsImageDataset:
             num_threads=num_threads,
             image_feature_key=image_feature_key,
             label_feature_key=label_feature_key,
+            processing_backend=processing_backend,
         )
 
         self.sampler = BatchSampler(

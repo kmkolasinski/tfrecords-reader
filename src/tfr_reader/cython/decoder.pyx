@@ -327,7 +327,7 @@ cdef class Feature:
         self.bytes_list = bytes_list
 
     def WhichOneof(self, kind: str) -> str:
-        # this follows the Google protobug API
+        # this follows the Google protobuf API
         return self.kind
 
     @property

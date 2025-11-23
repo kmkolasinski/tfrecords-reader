@@ -66,11 +66,8 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools]
-ext-modules = [
-    { name = "tfr_reader.cython.indexer", sources = ["src/tfr_reader/cython/indexer.pyx"], extra-compile-args=["-finline-functions", "-O3"] },
-    { name = "tfr_reader.cython.decoder", sources = ["src/tfr_reader/cython/decoder.pyx"], extra-compile-args=["-finline-functions", "-O3"] },
-]
+[tool.setuptools.package-data]
+tfr_reader = ["*.pxd", "*.pyi", "*.pyx", "py.typed", "**/*.pxd", "**/*.pyi", "**/*.pyx", "**/*.cpp"]
 
 [tool.pytest.ini_options]
 testpaths = [
@@ -133,7 +130,8 @@ ignore = [
     "G004", #  Logging statement uses f-string
     "B028", # Ignore missing stack explicit in warning.warn
     "N802", # Function name should be lowercase
-    "FBT003" # Boolean-typed keyword argument in function definition
+    "FBT003", # Boolean-typed keyword argument in function definition
+    "PYI021" # Docstrings should not be included in stubs
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -143,7 +141,8 @@ ignore = [
     "ANN", # Annotations
     "SLF001", # Private member accessed
     "PT011", # `pytest.raises(ValueError)` is too broad
-    "PLR2004"
+    "PLR2004",
+    "PYI021" # Docstrings should not be included in stubs
 ]
 
 # Only allow autofix for these import-related and docstring rules
