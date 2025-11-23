@@ -25,7 +25,7 @@ jobs:
           pip install uv
           uv venv
           source .venv/bin/activate
-          apt-get install -y libturbojpeg-dev
+          sudo apt-get install -y libturbojpeg-dev
           uv pip install -e ".[dev,datasets]"
       - name: Run tests (for base requirements)
         run: |
