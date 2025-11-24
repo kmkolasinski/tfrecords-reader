@@ -11,12 +11,19 @@ cdef class ImageProcessor:
     cdef public int num_threads
     cdef public str image_feature_key
     cdef public str label_feature_key
+    cdef public str processing_backend
 
     @cython.locals(
         batch_size=cython.int,
         i=cython.int,
     )
-    cpdef object cy_process_batch(self, raw_data_list)
+    cpdef object cy_process_batch_opencv(self, raw_data_list)
+
+    @cython.locals(
+        batch_size=cython.int,
+        i=cython.int,
+    )
+    cpdef object cy_process_batch_cython(self, raw_data_list)
 
     @cython.locals(
         example=Example,

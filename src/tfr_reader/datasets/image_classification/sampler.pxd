@@ -9,6 +9,7 @@ from cython.cimports.libcpp.pair cimport pair
 cdef class BatchSampler:
     cdef readonly list[tuple[int, int]] global_index
     cdef readonly list[tuple[int, int]] original_index
+    cdef readonly list[int] file_lengths
     cdef public uint64_t current_pos
     cdef public int epoch_count
     cdef readonly int max_epochs

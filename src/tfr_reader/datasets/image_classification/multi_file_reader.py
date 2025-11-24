@@ -4,6 +4,7 @@ MultiFileReader: Efficient reading from multiple TFRecord files with file poolin
 
 import os
 from collections import OrderedDict
+from pathlib import Path
 
 from tfr_reader.cython.indexer import TFRecordFileReader
 
@@ -17,7 +18,11 @@ class MultiFileReader:
     """
 
     def __init__(
-        self, tfrecord_paths: list[str], max_open_files: int = 16, save_index: bool = True
+        self,
+        tfrecord_paths: list[str],
+        max_open_files: int = 16,
+        save_index: bool = True,
+        verbose: bool = True,
     ):
         """
         Initialize the MultiFileReader.
@@ -26,6 +31,7 @@ class MultiFileReader:
             tfrecord_paths: A list of paths to TFRecord files.
             max_open_files: The maximum number of file handles to keep open simultaneously.
             save_index: Whether to save/load indices to/from disk for faster startup.
+            verbose: Whether to print status messages during initialization.
         """
         # LRU cache for active readers: OrderedDict is perfect for this
         self.active_readers: OrderedDict[int, TFRecordFileReader] = OrderedDict()
@@ -40,6 +46,7 @@ class MultiFileReader:
         self.save_index = save_index
         self.num_files = len(self.file_paths)
         self.indices: list[list] = []
+        self.verbose = verbose
         self._load_all_indices()
 
     def _load_all_indices(self):
@@ -54,9 +61,8 @@ class MultiFileReader:
             temp_reader = TFRecordFileReader(path, self.save_index)
             file_index = temp_reader.get_pointers()
             self.indices.append(file_index)
-            print(f"  File {i}: {len(file_index)} examples")
-
-        print(f"Total examples: {self.get_total_examples()}")
+            if self.verbose:
+                print(f" [{i:>4}] {Path(path).name:<25} {len(file_index):>10} examples")
 
     def get_total_examples(self) -> int:
         """Get the total number of examples across all files."""

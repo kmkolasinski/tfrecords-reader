@@ -22,7 +22,7 @@ class BatchSampler:
         shuffle: bool = True,
         interleave: bool = True,
         repeat: int = 1,
-        interleave_block_size: int = 32,
+        interleave_block_size: int = 16,
         drop_remainder: bool = False,
         seed: int | None = None,
     ):
@@ -58,6 +58,7 @@ class BatchSampler:
         self.global_index = self._build_global_index(file_lengths)
         self.original_index = list(self.global_index)
         self.total_examples = len(self.global_index)
+        self.file_lengths = file_lengths
 
         # Initial shuffle if requested
         if self.shuffle:
@@ -84,40 +85,85 @@ class BatchSampler:
 
     def _build_interleaved_index(self, file_lengths: list[int]) -> list[tuple[int, int]]:
         """
-        Build an interleaved index with block-based sampling.
+        Build a global index that iterates through several files in an
+        interleaved round-robin fashion, but at most `interleave_block_size`
+        files are active at the same time.
 
         Args:
-            file_lengths: list of the number of examples in each file.
+            file_lengths: Number of examples contained in every file (file 0, file 1 ...).
 
-        Returns:
-            An interleaved list of (file_idx, example_idx) tuples.
+        Returns: A list of (file_id, position_inside_file) pairs describing the
+            global ordering.
         """
+        if self.interleave_block_size <= 0:
+            raise ValueError("`interleave_block_size` must be a positive integer")
+
         num_files = len(file_lengths)
-        file_positions = [0] * num_files
-        index = []
+        # Pointer to the next record that must be read for every file
+        offsets = [0] * num_files
 
-        all_exhausted = False
-        while not all_exhausted:
-            all_exhausted = True
-            for file_idx in range(num_files):
-                start_pos = file_positions[file_idx]
-                if start_pos < file_lengths[file_idx]:
-                    all_exhausted = False
+        # Files currently participating in the round-robin
+        active: list[int] = []
+        next_file_to_activate = 0
 
-                    # Determine the block size to sample from this file
-                    remaining_examples = file_lengths[file_idx] - start_pos
-                    examples_in_block = min(self.interleave_block_size, remaining_examples)
+        # Activate the first `interleave_block_size` files
+        while len(active) < self.interleave_block_size and next_file_to_activate < num_files:
+            active.append(next_file_to_activate)
+            next_file_to_activate += 1
 
-                    # Add examples from the block to the index
-                    index.extend([(file_idx, start_pos + j) for j in range(examples_in_block)])
+        result: list[tuple[int, int]] = []
 
-                    file_positions[file_idx] += examples_in_block
-        return index
+        while active:
+            finished: list[int] = []
+
+            # One "round": produce one record from every active file
+            for file_id in active:
+                pos = offsets[file_id]
+                if pos >= file_lengths[file_id]:
+                    # Already exhausted - mark for removal
+                    finished.append(file_id)
+                    continue
+
+                # Emit current record and advance file pointer
+                result.append((file_id, pos))
+                offsets[file_id] += 1
+
+                # If that was the last record of this file, mark for removal
+                if offsets[file_id] == file_lengths[file_id]:
+                    finished.append(file_id)
+
+            # Remove files that ran out of data
+            if finished:
+                active = [f for f in active if f not in finished]
+
+            # Activate new files until the active set is full again
+            while len(active) < self.interleave_block_size and next_file_to_activate < num_files:
+                active.append(next_file_to_activate)
+                next_file_to_activate += 1
+
+        return result
 
     def shuffle_indices(self) -> None:
-        """Shuffle the global index using Python's random module."""
+        """
+        Shuffle the global index by shuffling example indices within each file.
+
+        This approach maintains file locality, improving performance by reducing
+        file switching overhead compared to shuffling across all files.
+        """
         random.seed(self.random_seed)
-        random.shuffle(self.global_index)
+
+        # Create shuffled index mappings for each file
+        new_examples_order: list[list[int]] = []
+        for num_examples in self.file_lengths:
+            file_indices = list(range(num_examples))
+            random.shuffle(file_indices)
+            new_examples_order.append(file_indices)
+
+        # Remap the global index using the shuffled file indices
+        for i, (file_id, old_example_idx) in enumerate(self.global_index):
+            new_example_idx = new_examples_order[file_id][old_example_idx]
+            self.global_index[i] = (file_id, new_example_idx)
+
         # Update seed for the next shuffle to ensure different shuffling in subsequent epochs
         self.random_seed = random.randint(0, 2**32 - 1)  # noqa: S311
 

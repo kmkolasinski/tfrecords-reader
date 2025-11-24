@@ -28,6 +28,20 @@ pip install "tfr-reader[datasets,google]"
 ## Installation
 
 
+The module requires libjpeg-turbo development files:
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install libturbojpeg-dev
+
+# macOS
+brew install jpeg-turbo
+
+# Fedora/RHEL
+sudo dnf install turbojpeg-devel
+```
+
+
 * Base installation with minimum requirements:
     ```bash
     pip install "git+https://github.com/kmkolasinski/tfrecords-reader.git"
