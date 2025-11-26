@@ -32,6 +32,8 @@ class TFRecordsImageDataset:
         image_feature_key: str = "image/encoded",
         label_feature_key: str = "image/object/bbox/label",
         processing_backend: str = "cython",
+        file_reader_max_workers: int | None = None,
+        *,
         verbose: bool = False,
     ):
         """
@@ -53,6 +55,8 @@ class TFRecordsImageDataset:
             image_feature_key: Feature key for image data in TFRecord.
             label_feature_key: Feature key for label data in TFRecord.
             processing_backend: Backend to use for image processing ("cython" or "opencv").
+            file_reader_max_workers: Maximum number of workers for loading file indices.
+            verbose: Whether to print status messages during initialization.
         """
 
         if not tfrecord_paths:
@@ -68,6 +72,7 @@ class TFRecordsImageDataset:
             max_open_files=max_open_files,
             save_index=save_index,
             verbose=verbose,
+            max_workers=file_reader_max_workers,
         )
         self.image_processor = ImageProcessor(
             target_width=input_size[1],
