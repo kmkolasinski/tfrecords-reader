@@ -286,8 +286,8 @@ cdef bool save_index_to_file(str index_filepath, vector[example_pointer_t]& poin
     return True
 
 
-cdef vector[example_pointer_t] load_index_from_file(str index_filepath):
-    """Load the index from a binary file."""
+cdef vector[example_pointer_t] _load_index_from_file_internal(str index_filepath):
+    """Load the index from a binary file (internal C-level function)."""
     cdef:
         FILE *f
         size_t num_pointers = 0
@@ -327,3 +327,29 @@ cdef vector[example_pointer_t] load_index_from_file(str index_filepath):
 
     fclose(f)
     return pointers
+
+
+cdef vector[example_pointer_t] load_index_from_file(str index_filepath):
+    """Load the index from a binary file."""
+    return _load_index_from_file_internal(index_filepath)
+
+
+cpdef list[example_pointer_t] load_index_from_file_py(str index_filepath):
+    """
+    Load the index from a binary file and return as Python list.
+
+    Args:
+        index_filepath: Path to the index file
+
+    Returns:
+        list[example_pointer_t]: List of dicts with 'start', 'end', 'example_size' keys
+    """
+    cdef:
+        vector[example_pointer_t] pointers = _load_index_from_file_internal(index_filepath)
+        list result = []
+        size_t i
+
+    for i in range(pointers.size()):
+        result.append(pointers[i])
+
+    return result

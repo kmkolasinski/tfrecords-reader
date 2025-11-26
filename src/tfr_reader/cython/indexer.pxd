@@ -23,3 +23,5 @@ cdef class TFRecordFileReader:
     cpdef example_pointer_t get_pointer(self, uint64_t idx)
     cpdef list get_pointers(self)
     cdef bytes get_example_fast(self, uint64_t idx)
+
+cpdef list load_index_from_file_py(str index_filepath)
