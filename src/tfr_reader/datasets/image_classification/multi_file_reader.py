@@ -5,9 +5,17 @@ MultiFileReader: Efficient reading from multiple TFRecord files with file poolin
 import os
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
+from typing import TypedDict
+
+from tqdm import tqdm
 
 from tfr_reader.cython.indexer import TFRecordFileReader
+
+
+class ExamplePointer(TypedDict):
+    start: int
+    end: int
+    example_size: int
 
 
 class MultiFileReader:
@@ -53,7 +61,7 @@ class MultiFileReader:
         self.max_workers = max_workers
         self._load_all_indices()
 
-    def _load_single_index(self, i: int, path: str) -> tuple[int, list, str, int]:
+    def _load_single_index(self, path: str) -> list[ExamplePointer]:
         """
         Load the index for a single TFRecord file.
 
@@ -62,31 +70,29 @@ class MultiFileReader:
             path: The path to the TFRecord file.
 
         Returns:
-            A tuple containing (file_index, index_data, filename, num_examples).
+            A list of ExamplePointer objects representing the index.
         """
         if not os.path.exists(path):
             raise FileNotFoundError(f"TFRecord file not found: {path}")
 
-        # A temporary reader is created just to load the index.
-        # It will be closed automatically when it goes out of scope.
         temp_reader = TFRecordFileReader(path, self.save_index)
-        file_index = temp_reader.get_pointers()
-        return (i, file_index, Path(path).name, len(file_index))
+        index = temp_reader.get_pointers()
+        temp_reader.close()
+        return index
 
     def _load_all_indices(self) -> None:
         """Load the indices for all TFRecord files into memory using parallel processing."""
-        print(f"Loading indices for {self.num_files} files...")
-
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            results = executor.map(
-                lambda item: self._load_single_index(item[0], item[1]), enumerate(self.file_paths)
+            results = tqdm(
+                executor.map(self._load_single_index, self.file_paths),
+                total=self.num_files,
+                desc="Loading indices",
+                disable=not self.verbose,
             )
 
-            # Process results and build indices list
-            for i, file_index, filename, num_examples in results:
+            self.indices = []
+            for file_index in results:
                 self.indices.append(file_index)
-                if self.verbose:
-                    print(f" [{i:>4}] {filename:<25} {num_examples:>10} examples")
 
     def get_total_examples(self) -> int:
         """Get the total number of examples across all files."""
