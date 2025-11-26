@@ -218,6 +218,7 @@ cdef vector[example_pointer_t] create_tfrecord_pointers_index(str tfrecord_filen
         size_t num_read
         int ret
 
+    # print("Creating index for TFRecord file: {}".format(tfrecord_filename))
     f = fopen(tfrecord_filename.encode('utf-8'), b'rb')
     if not f:
         raise IOError("Cannot open file: {}".format(tfrecord_filename))
