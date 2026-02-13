@@ -13,7 +13,6 @@ from setuptools import setup
 
 # Try to import numpy and cython - only build extensions if available
 try:
-    import numpy as np
     from Cython.Build import cythonize
     from setuptools import Extension
 
@@ -29,31 +28,6 @@ try:
             name="tfr_reader.cython.decoder",
             sources=["src/tfr_reader/cython/decoder.pyx"],
             extra_compile_args=["-finline-functions", "-O3"],
-        ),
-        # Image classification extensions (require numpy)
-        Extension(
-            name="tfr_reader.datasets.image_classification.processor",
-            sources=["src/tfr_reader/datasets/image_classification/processor.py"],
-            include_dirs=[np.get_include(), "src"],
-            extra_compile_args=["-finline-functions", "-O3", "-fopenmp"],
-            extra_link_args=["-fopenmp"],
-            language="c++",
-        ),
-        Extension(
-            name="tfr_reader.datasets.image_classification.sampler",
-            sources=["src/tfr_reader/datasets/image_classification/sampler.py"],
-            include_dirs=[np.get_include(), "src"],
-            extra_compile_args=["-finline-functions", "-O3"],
-            language="c++",
-        ),
-        Extension(
-            name="tfr_reader.cython.image",
-            sources=["src/tfr_reader/cython/image.pyx"],
-            include_dirs=[np.get_include(), "src"],
-            extra_compile_args=["-finline-functions", "-O3", "-fopenmp"],
-            extra_link_args=["-fopenmp"],
-            libraries=["turbojpeg"],
-            language="c++",
         ),
     ]
 
