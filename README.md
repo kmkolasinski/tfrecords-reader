@@ -142,7 +142,10 @@ import tfr_reader as tfr
 
 tfrds = tfr.TFRecordDatasetReader("/path/to/directory/with/tfrecords")
 # assume that the dataset is indexed already
-tfrds = tfr.TFRecordDatasetReader("gs://bucket/path/to/directory/with/tfrecords")
+tfrds = tfr.TFRecordDatasetReader(
+    "gs://bucket/path/to/directory/with/tfrecords",
+    index_cache_dir="/tmp/tfr_index_cache" # Optional: caches remote index files locally
+)
 # selection API
 selected_df, examples = tfrds.select("SELECT * FROM index WHERE name = 'cat' LIMIT 20")
 # custom selection
