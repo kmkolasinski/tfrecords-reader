@@ -1,4 +1,5 @@
 import fnmatch
+import hashlib
 import struct
 from collections.abc import Iterable
 from concurrent import futures
@@ -267,7 +268,8 @@ class TFRecordDatasetReader:
                 return pl.read_parquet(file.read())
 
         self.index_cache_dir.mkdir(parents=True, exist_ok=True)
-        cached_index_path = self.index_cache_dir / indexer.INDEX_FILENAME
+        path_hash = hashlib.sha256(index_path.encode("utf-8")).hexdigest()
+        cached_index_path = self.index_cache_dir / f"{path_hash}_{indexer.INDEX_FILENAME}"
 
         if cached_index_path.exists():
             self.logger.info("Loading dataset index from cache %s ...", cached_index_path)
@@ -360,7 +362,7 @@ def join_path(base_path: str | Path, suffix: str) -> str:
     """Properly joins a base directory URI/path with a filename suffix.
 
     Args:
-        base_path: Base directory path (handles cloud GS/S3 scheme syntax gracefully).
+        base_path: Base directory path (handles cloud GS scheme syntax gracefully).
         suffix: Appended filename component.
 
     Returns:
