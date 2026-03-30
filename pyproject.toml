@@ -60,6 +60,7 @@ dev = [
     "pytest-mock",
     "Pillow",
     "protobuf", # Creating example protobufs
+    "pre-commit", # pre-commit hooks
 ]
 
 
