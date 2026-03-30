@@ -1,4 +1,5 @@
 import fnmatch
+import hashlib
 import struct
 from collections.abc import Iterable
 from concurrent import futures
@@ -15,6 +16,13 @@ LOGGER = logging.Logger(__name__)
 
 
 class TFRecordFileReader:
+    """A low-level reader for fetching individual examples from a single TFRecord file.
+
+    This class handles opening a TFRecord file (local or remote), reading byte
+    ranges, and decoding them into raw feature data. It is primarily used as
+    an underlying reader by the dataset-level abstractions.
+    """
+
     def __init__(self, filepath: str):
         """Initializes the dataset with the TFRecord file reader.
 
@@ -69,28 +77,40 @@ class TFRecordFileReader:
 
 
 class TFRecordDatasetReader:
+    """A dataset reader for indexed TFRecord datasets.
+
+    Provides mechanisms to load an indexed TFRecord dataset (either local or from cloud storage).
+    It supports querying by SQL, retrieving chunks or individual features, and caching
+    dataset indices using polars as the underlying query engine.
+    """
+
     def __init__(
         self,
         dataset_dir: str | Path,
         index_df: pl.DataFrame | None = None,
         verbose: bool = True,
+        index_cache_dir: str | Path | None = None,
     ):
-        """Initializes the dataset with the TFRecord files and their index."""
+        """Initializes the dataset with the TFRecord files and their index.
+
+        Args:
+            dataset_dir: Directory containing the .tfrecord files and the index.
+            index_df: Optional pre-loaded polars DataFrame representing the dataset index.
+            verbose: If True, prints loading progression.
+            index_cache_dir: Optional path to a directory where the downloaded dataset
+                index will be cached locally to speed up subsequent loads.
+        """
 
         self.storage = fs.get_file_system(dataset_dir)
         self.dataset_dir = str(dataset_dir)
         self.verbose = verbose
         self.logger = logging.Logger(self.__class__.__name__, verbose)
+        self.index_cache_dir = Path(index_cache_dir) if index_cache_dir is not None else None
 
         if index_df is None:
             index_path = join_path(dataset_dir, indexer.INDEX_FILENAME)
-            if not self.storage.exists(index_path):
-                raise FileNotFoundError(
-                    f"Index file {index_path} does not exist. Please create the index first.",
-                )
-            self.logger.info("Loading dataset index from %s ...", index_path)
-            with self.storage.open(index_path, "rb") as file:
-                index_df = pl.read_parquet(file.read())
+            index_df = self._load_or_cache_index(index_path)
+
         self.index_df = index_df.with_row_index("_row_id")
         self.ctx = pl.SQLContext(index=self.index_df, eager=True)
         self.logger.info(f"Loaded dataset index with N={self.index_df.height} records ...")
@@ -111,6 +131,7 @@ class TFRecordDatasetReader:
         index_fn: example.IndexFunc | None = None,
         filepattern: str = "*.tfrecord",
         processes: int = 1,
+        index_cache_dir: str | Path | None = None,
     ) -> "TFRecordDatasetReader":
         """Creates an index for all TFRecord files in a directory.
 
@@ -136,7 +157,7 @@ class TFRecordDatasetReader:
         )
         ds = pl.DataFrame(data).sort(by=["tfrecord_filename", "tfrecord_start"])
         ds.write_parquet(Path(dataset_dir) / indexer.INDEX_FILENAME)
-        return cls(str(dataset_dir), index_df=ds)
+        return cls(str(dataset_dir), index_df=ds, index_cache_dir=index_cache_dir)
 
     @overload
     def __getitem__(self, idx: int) -> example.Feature: ...
@@ -163,16 +184,44 @@ class TFRecordDatasetReader:
             return reader.get_example(offsets["tfrecord_start"], offsets["tfrecord_end"])
 
     def select(self, sql_query: str) -> tuple[pl.DataFrame, list[example.Feature]]:
+        """Executes an SQL query against the dataset index and loads the matched records.
+
+        Args:
+            sql_query: SQL statement querying the internal dataset index (table is `index`).
+
+        Returns:
+            A tuple containing:
+              - A polars DataFrame representing the index selection.
+              - A list of decoded Feature objects corresponding to the selection.
+        """
         selection = self.ctx.execute(sql_query)
         self.logger.info(f"Selected N={selection.height} records ...")
         return selection, self.load_records(selection)
 
     def query(self, sql_query: str) -> pl.DataFrame:
+        """Executes an SQL query against the dataset index.
+
+        Args:
+            sql_query: SQL statement querying the internal dataset index (table is `index`).
+
+        Returns:
+            A polars DataFrame containing the retrieved rows.
+        """
         return self.ctx.execute(sql_query)
 
     def load_records(
         self, selection: pl.DataFrame, max_workers: int | None = None
     ) -> list[example.Feature]:
+        """Loads physical TFRecord examples based on a provided index selection.
+
+        Args:
+            selection: A polars DataFrame containing exactly `tfrecord_filename`,
+                `tfrecord_start`, and `tfrecord_end` columns.
+            max_workers: The thread pool max workers for concurrent retrieval.
+
+        Returns:
+            A list of decoded Feature objects in the order of the selection dataframe.
+        """
         index_cols = ["tfrecord_filename", "tfrecord_start", "tfrecord_end"]
         selection = selection[index_cols]
         pbar = {
@@ -196,6 +245,49 @@ class TFRecordDatasetReader:
 
         with futures.ThreadPoolExecutor(max_workers=max_workers) as pool:
             return list(tqdm(pool.map(get_single, example_items), **pbar))
+
+    def _load_or_cache_index(self, index_path: str) -> pl.DataFrame:
+        """Loads dataset index from local cache if available, or downloads and caches it.
+
+        Args:
+            index_path: The remote or local path to the index file in the storage.
+
+        Returns:
+            index_df: Polars dataframe containing the dataset index.
+
+        Raises:
+            FileNotFoundError: If the index file does not exist in the storage.
+        """
+        if self.index_cache_dir is None:
+            if not self.storage.exists(index_path):
+                raise FileNotFoundError(
+                    f"Index file {index_path} does not exist. Please create the index first.",
+                )
+            self.logger.info("Loading dataset index from %s ...", index_path)
+            with self.storage.open(index_path, "rb") as file:
+                return pl.read_parquet(file.read())
+
+        self.index_cache_dir.mkdir(parents=True, exist_ok=True)
+        path_hash = hashlib.sha256(index_path.encode("utf-8")).hexdigest()
+        cached_index_path = self.index_cache_dir / f"{path_hash}_{indexer.INDEX_FILENAME}"
+
+        if cached_index_path.exists():
+            self.logger.info("Loading dataset index from cache %s ...", cached_index_path)
+            return pl.read_parquet(cached_index_path)
+
+        if not self.storage.exists(index_path):
+            raise FileNotFoundError(
+                f"Index file {index_path} does not exist. Please create the index first.",
+            )
+        self.logger.info("Loading dataset index from %s ...", index_path)
+        with self.storage.open(index_path, "rb") as file:
+            index_bytes = file.read()
+
+        self.logger.info("Caching dataset index to %s ...", cached_index_path)
+        with open(cached_index_path, "wb") as f_out:
+            f_out.write(index_bytes)
+
+        return pl.read_parquet(index_bytes)
 
 
 def inspect_dataset_example(
@@ -240,20 +332,42 @@ def load_from_directory(
     index_fn: example.IndexFunc | None = None,
     processes: int = 1,
     override: bool = False,
+    index_cache_dir: str | Path | None = None,
 ) -> TFRecordDatasetReader:
-    """Creates an index for the TFRecord dataset."""
+    """Loads an existing TFRecord dataset or creates an index for one if missing.
+
+    Args:
+        dataset_dir: Path/URI to the directory containing tfrecord files.
+        filepattern: Glob pattern to identify TFRecord files (default: "*.tfrecord").
+        index_fn: Optional parsing function to extract custom columns/fields into the index.
+        processes: The number of processes to use if generating the index from scratch.
+        override: If True, forces creating a new dataset index over an existing one.
+        index_cache_dir: Optional location to persist remote index parquets locally.
+
+    Returns:
+        An instantiated TFRecordDatasetReader.
+    """
     if (Path(dataset_dir) / indexer.INDEX_FILENAME).exists() and not override:
         LOGGER.info(
             "Index file already exists. Loading the dataset from the index ..."
             "If you want to override the index, set override=True.",
         )
-        return TFRecordDatasetReader(dataset_dir)
+        return TFRecordDatasetReader(dataset_dir, index_cache_dir=index_cache_dir)
     return TFRecordDatasetReader.build_index_from_dataset_dir(
-        dataset_dir, index_fn, filepattern, processes
+        dataset_dir, index_fn, filepattern, processes, index_cache_dir=index_cache_dir
     )
 
 
 def join_path(base_path: str | Path, suffix: str) -> str:
+    """Properly joins a base directory URI/path with a filename suffix.
+
+    Args:
+        base_path: Base directory path (handles cloud GS scheme syntax gracefully).
+        suffix: Appended filename component.
+
+    Returns:
+        The concatenated string representing the full URI.
+    """
     base_str = str(base_path)
     if not base_str.endswith("/"):
         base_str += "/"

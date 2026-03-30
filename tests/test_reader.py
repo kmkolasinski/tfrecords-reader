@@ -138,6 +138,19 @@ def test__complex_bytes():
     assert random_image_bytes == restored["image"].value[0]
 
 
+def test__dataset_reader_index_cache(tfrecord_file: str, tmp_path: Path):
+    dataset_dir = str(Path(tfrecord_file).parent)
+    cache_dir = tmp_path / "cache_dir"
+
+    tfr.TFRecordDatasetReader.build_index_from_dataset_dir(dataset_dir, _index_fn)
+    ds_caching = tfr.TFRecordDatasetReader(dataset_dir, index_cache_dir=cache_dir)
+    assert ds_caching.size == NUM_RECORDS
+    cached_files = list(cache_dir.glob("*.parquet"))
+    assert len(cached_files) == 1
+    ds_cached = tfr.TFRecordDatasetReader(dataset_dir, index_cache_dir=cache_dir)
+    assert ds_cached.size == NUM_RECORDS
+
+
 def _decode_demo_fn(feat: tfr.Feature) -> dict[str, tfr.Feature]:
     return {
         "name": feat["name"].value[0].decode(),
