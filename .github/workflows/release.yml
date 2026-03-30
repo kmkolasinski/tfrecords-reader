@@ -45,6 +45,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.merge_commit_sha }}
+          token: ${{ secrets.RELEASE_PAT }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
