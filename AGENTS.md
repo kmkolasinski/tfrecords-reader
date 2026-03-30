@@ -51,3 +51,4 @@ We rely on a `Makefile` to simplify local development steps.
 2. **Use Ruff:** Code must adhere to `ruff`'s default formatting (Black-like).
 3. **Protobuf Handling:** If a bug relates to missing fields in TFRecords, inspect `tfr_example.proto` and the internal cython decoding rather than falling back to standard Python `google.protobuf`.
 4. **Interpreter:** For tools like VS Code or testing tasks (`test_reader.py`), ensure the python interpreter is pointed to an environment where the `tfr_reader` module was installed in editable mode (`uv pip install -e .`), so compiled extensions are correctly resolved.
+5. **Pull Requests:** When asked to create a pull request (e.g., via `gh` CLI or workflows), **ALWAYS** use the pull request template found in `.github/PULL_REQUEST_TEMPLATE.md`. Ensure that all required fields, checkboxes, and version bump options are explicitly filled out and included in the PR description.
