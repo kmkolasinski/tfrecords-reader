@@ -152,6 +152,9 @@ fixable = ["F401", "F403", "I001", "D411", "D415", "D208", "D209", "RET504"]
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
+[tool.ruff.lint.pylint]
+max-args = 8
+
 [tool.mypy]
 # Drop problematic files which are causing errors like:
 # mypy error: Duplicate module named ...
