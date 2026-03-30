@@ -33,7 +33,7 @@ def simple_index_fn(
     return index_data
 
 
-def create_simple_index(  # noqa: PLR0913
+def create_simple_index(
     directory: str | Path,
     label_field: str,
     label_mapping: dict[int, dict[str, Any]],
