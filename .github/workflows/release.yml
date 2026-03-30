@@ -1,54 +1,112 @@
+name: Release
 
-name: Upload Python Package
 permissions:
   contents: write
 
 on:
-  push:
-    # Sequence of patterns matched against refs/tags
-    tags:
-      - '*' # Push events to matching v*, i.e. v1.0, v20.15.10
-
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
 
 jobs:
-  release:
-    name: Create Release
+  check-bump:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      bump: ${{ steps.bump_type.outputs.bump }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Determine Bump Type
+        id: bump_type
+        # Extract body safely avoiding injection vulnerabilities
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          cat << 'EOF' > parse.py
+          import os, re
+          body = os.environ.get("PR_BODY", "")
+          match = re.search(r'-\s+\[[xX]\]\s+(major|minor|patch|none)', body, re.IGNORECASE)
+          if match:
+              print(match.group(1).lower())
+          else:
+              print("none")
+          EOF
+          BUMP=$(python parse.py)
+          echo "Selected bump: $BUMP"
+          echo "bump=$BUMP" >> $GITHUB_OUTPUT
+
+  release:
+    needs: check-bump
+    if: needs.check-bump.outputs.bump != 'none'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
         with:
-          # by default, it uses a depth of 1
-          # this fetches all history so that we can read each commit
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Bump Version in pyproject.toml
+        id: bump_version
+        env:
+          BUMP: ${{ needs.check-bump.outputs.bump }}
+        run: |
+          cat << 'EOF' > bump.py
+          import os, re, sys
+          bump_type = os.environ['BUMP']
+          with open('pyproject.toml', 'r') as f:
+              content = f.read()
+          match = re.search(r'version\s*=\s*"(\d+)\.(\d+)\.(\d+)"', content)
+          if not match:
+              print("Error: Could not parse version in pyproject.toml.")
+              sys.exit(1)
+          major, minor, patch = map(int, match.groups())
+          if bump_type == 'major': major += 1; minor = 0; patch = 0
+          elif bump_type == 'minor': minor += 1; patch = 0
+          elif bump_type == 'patch': patch += 1
+          new_ver = f'{major}.{minor}.{patch}'
+          new_content = content[:match.start(1)] + new_ver + content[match.end(3):]
+          with open('pyproject.toml', 'w') as f:
+              f.write(new_content)
+
+          # We need to output for GH Actions
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"version={new_ver}\n")
+          EOF
+          python bump.py
+          rm bump.py
+
+      - name: Commit and Tag
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git commit -a -m "chore: bump version to ${{ steps.bump_version.outputs.version }} [skip ci]"
+          git tag -a "${{ steps.bump_version.outputs.version }}" -m "Release ${{ steps.bump_version.outputs.version }}"
+          git push origin HEAD:main
+          git push origin "${{ steps.bump_version.outputs.version }}"
+
       - name: Generate Changelog
         run: .github/release_message.sh > release_message.md
-      - name: Release
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.bump_version.outputs.version }}
           body_path: release_message.md
 
-  deploy:
-    needs: release
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install setuptools wheel twine
-    - name: Build and publish
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-      run: |
-        python -m pip install --upgrade build
-        python -m build --sdist
-        twine upload dist/*
+      - name: Install PyPI deployment dependencies
+        run: |
+          python -m pip install --upgrade pip build twine
+
+      - name: Build and Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          python -m build --sdist
+          twine upload dist/*

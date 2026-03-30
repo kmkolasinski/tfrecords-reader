@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ develop, main ]
+    branches: [ main ]
   pull_request:
-    branches: [ develop, main ]
+    branches: [ main ]
 
 jobs:
 
@@ -12,14 +12,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.11]
+        python-version: ["3.11"]
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+
       - name: Install base requirements project
         run: |
           pip install uv
@@ -27,14 +29,27 @@ jobs:
           source .venv/bin/activate
           sudo apt-get install -y libturbojpeg-dev
           uv pip install -e ".[dev,datasets]"
+
+      - name: Run pre-commit (Linting and Formatting)
+        run: |
+          source .venv/bin/activate
+          SKIP=no-commit-to-branch pre-commit run --all-files
+
+      - name: Run mypy (Type Checking)
+        run: |
+          source .venv/bin/activate
+          mypy --python-version=${{ matrix.python-version }} --config-file=pyproject.toml
+
       - name: Run tests (for base requirements)
         run: |
           source .venv/bin/activate
           pytest tests
+
       - name: Install + Google Dependencies
         run: |
           source .venv/bin/activate
           uv pip install -e ".[google,datasets]"
+
       - name: Run tests (protobuf and gcsfs) dependencies
         run: |
           source .venv/bin/activate
